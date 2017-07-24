@@ -46,9 +46,16 @@ function writeCsv($list, $name)
     fclose($fp);
 }
 
-function writeJson($array, $name)
+function writeOutput($array, $name)
 {
-    file_put_contents($name . '.json', json_encode($array));
+    $str = '';
+    foreach ($array as $set) {
+        $str.= $set[0] . ',' . $set[1] . ',' . $set[2] . '|';
+    }
+    $str = substr($str, 0, -1);
+    $fp     = fopen($name.'.xml', 'w+');
+    fwrite($fp, $str);
+    fclose($fp);
    
 }
 
@@ -182,7 +189,7 @@ function cleanGoogleElevation($elevArray, $distArray) {
     }
     echo count($gpxWP);
     writeGPX($gpxWP, 'googleGPX');
-    writeJson($outXPoints, 'outputXPoints');
+    writeOutput($outXPoints, 'outputXPoints');
     ###
 
 ?>
