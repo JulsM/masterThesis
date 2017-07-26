@@ -5,6 +5,7 @@ $db     = Db::getInstance();
 $conn   = $db->getConnection();
 $result = $db->query('SELECT * FROM users');
 
+
 ?>
 
 <!DOCTYPE html>

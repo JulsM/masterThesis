@@ -8,10 +8,9 @@ class Db
 
     private function __construct()
     {
-        $config = parse_ini_file("config.ini");
         try {
-            $this->connection = new PDO('mysql:host=' . $config['host'] . ';dbname=' . $config['dbname'], $config['username'], $config['password']);
-            // echo 'db connected';
+            $this->connection = pg_connect("dbname=strava user=postgres password=postgres");
+            //echo 'db connected';
         } catch (PDOException $ex) {
             echo "Error: " . $ex->getMessage();
         }
@@ -48,15 +47,15 @@ class Db
 
     public function query($sql)
     {
-        $result = $this->connection->query($sql);
+        $result = pg_query($this->connection, $sql);
 
-        return $result->fetchAll();
+        return pg_fetch_all($result);
     }
 
     public function saveAthlete($data)
     {
-        $statement = $this->connection->prepare("INSERT INTO users (strava_id, email, name, token) VALUES (?, ?, ?, ?)");
-        $statement->execute(array($data['stravaId'], $data['mail'], $data['name'], $data['token']));
+        $statement = "INSERT INTO users (strava_id, name, email, token) VALUES ('".$data['stravaId']."', '".$data['name']."', '".$data['mail']."', '".$data['token']."')";
+        $result = pg_query($this->connection, $statement);
     }
 
 }
