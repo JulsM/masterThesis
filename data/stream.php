@@ -19,7 +19,7 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
 
 function writeGPX($list, $name)
 {
-    $fp     = fopen($name.'.gpx', 'w+');
+    $fp     = fopen('output/'.$name.'.gpx', 'w+');
     $header = '<?xml version="1.0" encoding="UTF-8"?>
     <gpx creator="Julian" version="1.0" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd" >';
     fwrite($fp, $header);
@@ -39,7 +39,7 @@ function writeGPX($list, $name)
 
 function writeCsv($list, $name)
 {
-    $fp = fopen($name . '.csv', 'w+');
+    $fp = fopen('output/'.$name . '.csv', 'w+');
     foreach ($list as $line) {
         fputcsv($fp, $line);
     }
@@ -53,7 +53,7 @@ function writeOutput($array, $name)
         $str.= $set[0] . ',' . $set[1] . ',' . $set[2] . '|';
     }
     $str = substr($str, 0, -1);
-    $fp     = fopen($name.'.xml', 'w+');
+    $fp     = fopen('output/'.$name.'.xml', 'w+');
     fwrite($fp, $str);
     fclose($fp);
    

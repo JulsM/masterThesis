@@ -75,7 +75,7 @@ function queryActivties($token, $name)
 
 function writeRegressionCsv($list, $name)
 {
-    $fp = fopen($name . '_data.csv', 'w+');
+    $fp = fopen('output/'.$name . '_data.csv', 'w+');
     fputcsv($fp, array('time', 'distance', 'pace', 'elevation', 'vo2max'));
     foreach ($list as $line) {
         fputcsv($fp, $line);
