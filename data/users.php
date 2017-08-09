@@ -20,14 +20,16 @@ $result = $db->query('SELECT * FROM users');
 				<?php
 				echo 'List of all users in database:';
 				$n = 1;	
-				foreach ($result as $row) {
-				    echo '<div style="margin: 20px">'.$n.' - '.$row['name'].', '.$row['email'];
-				    echo '<form style="display: inline; margin: 10px" action="athlete.php" method="post">
-				    		<input type="hidden" value="'.$row['id'].'" name="id">
-				    		<input type="hidden" value="'.$row['name'].'" name="name">
-							<input type="submit" value="Download data">
-						</form></div>';
-					$n++;
+				if ($result != null) {
+					foreach ($result as $row) {
+					    echo '<div style="margin: 20px">'.$n.' - '.$row['name'].', '.$row['email'];
+					    echo '<form style="display: inline; margin: 10px" action="athlete.php" method="post">
+					    		<input type="hidden" value="'.$row['id'].'" name="id">
+					    		<input type="hidden" value="'.$row['name'].'" name="name">
+								<input type="submit" value="Get activities">
+							</form></div>';
+						$n++;
+					}
 				}
 				?>
 			</div>

@@ -1,4 +1,0 @@
-AuthType Basic
-AuthName "Bitte melden Sie sich an"
-AuthUserFile C:/Users/Juls/Desktop/xampp/htdocs/data/.htpasswd
-Require valid-user 

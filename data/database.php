@@ -9,7 +9,7 @@ class Db
     private function __construct()
     {
         try {
-            $this->connection = pg_connect("dbname=strava user=postgres password=postgres");
+            $this->connection = pg_connect("dbname=strava user=julian password=prediction");
             //echo 'db connected';
         } catch (PDOException $ex) {
             echo "Error: " . $ex->getMessage();
@@ -54,8 +54,15 @@ class Db
 
     public function saveAthlete($data)
     {
-        $statement = "INSERT INTO users (strava_id, name, email, token) VALUES ('".$data['stravaId']."', '".$data['name']."', '".$data['mail']."', '".$data['token']."')";
-        $result = pg_query($this->connection, $statement);
+        $sucess = false;
+        try {
+            $statement = "INSERT INTO users (strava_id, name, email, token) VALUES ('".$data['stravaId']."', '".$data['name']."', '".$data['mail']."', '".$data['token']."')";
+            $result = pg_query($this->connection, $statement);
+            
+        } catch(Exception $e) {
+            echo $e->getMessage();
+        }
+        // print( self::query("select id from users where email = '".$data['mail']."'"));
     }
 
 }

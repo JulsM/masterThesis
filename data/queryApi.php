@@ -36,7 +36,7 @@ function queryActivties($token, $name)
         $service = new REST($token, $adapter);
         $client  = new Client($service);
 
-        $activities     = $client->getAthleteActivities(null, null, null, 50);
+        $activities     = $client->getAthleteActivities(null, null, null, 10);
         $returnActivity = array();
         $regressionData = array();
 
@@ -53,19 +53,17 @@ function queryActivties($token, $name)
                     'time'             => $ac['elapsed_time'],
                     'average_speed'    => $mPerSec,
                     'elevation'        => $ac['total_elevation_gain'],
-                    'vo2max'           => $vo2max);
+                    'vo2max'           => $vo2max,
+                    'workout_type'     => $ac['workout_type'],
+                    'device'           => $ac['device_name']);
                 array_push($returnActivity, $data);
 
                 $regressionData[] = array($ac['elapsed_time'] / 60, $ac['distance'] / 1000, $mPerSec, $ac['total_elevation_gain'] / 1000, $vo2max);
 
-                // foreach ($ac['laps'] as $lap) {
-                //     print 'distance: ' . $lap['distance'] . ', elapsed time: ' . $lap['elapsed_time'] . ', elevation gain: ' . $lap['total_elevation_gain'] . '<br>';
-                // }
             }
 
         }
-        writeRegressionCsv($regressionData, $name);
-        // $stream = $client->getStreamsActivity(936000754, 'latlng');
+        // writeRegressionCsv($regressionData, $name);
 
     } catch (Exception $e) {
         print $e->getMessage();
@@ -75,7 +73,7 @@ function queryActivties($token, $name)
 
 function writeRegressionCsv($list, $name)
 {
-    $fp = fopen('output/'.$name . '_data.csv', 'w+');
+    $fp = fopen('output/' . $name . '_data.csv', 'w+');
     fputcsv($fp, array('time', 'distance', 'pace', 'elevation', 'vo2max'));
     foreach ($list as $line) {
         fputcsv($fp, $line);

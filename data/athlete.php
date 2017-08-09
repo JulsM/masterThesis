@@ -24,12 +24,13 @@ if (isset($_POST['id'])) {
 	<p>All activities of <?php echo $_POST['name']?>:</p>
 	<?php
 		$num = 1;
+
 		foreach ($activityArray as $ac) {
-		    echo '<div>'.$num.'. ' . $ac['name'] . ', distance: ' . $ac['distance'] / 1000 .' km, elapsed time: ' . $ac['time'] / 60 . ' min, pace: ' . $ac['average_speed'] . ' m/min, elevation gain: ' . $ac['elevation'] . ' m, VO2max: '. $ac['vo2max'];
+		    echo '<div>'.$num.'. ' . $ac['name'] . ', distance: ' . $ac['distance'] / 1000 .' km, elapsed time: ' . round($ac['time'] / 60, 2 ). ' min, pace: ' . round($ac['average_speed'], 2 ). ' m/min, elevation gain: ' . $ac['elevation'] . ' m, VO2max: '. round($ac['vo2max'], 2) . ' workout type: '.$ac['workout_type'] . ' device: '.  $ac['device'];
             echo '<form action="stream.php" method="post">
                     <input type="hidden" name="id" value="'.$ac['id'].'">
                     <input type="hidden" name="token" value="'.$token.'">
-                    <input type="submit" value="stream">
+                    <input type="submit" value="Compute string">
                 </form>'.' <br><br> </div>';
 		    $num++;
 		}

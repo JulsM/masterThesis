@@ -2,10 +2,11 @@
 include 'StravaPHP/vendor/autoload.php';
 include 'queryApi.php';
 
+$callbackUrl = 'http://localhost/data/strava_callback.php';
+$callbackUrl = 'http://umtl.dfki.de/~julian/data/strava_callback.php';
 
 use Strava\API\Exception;
 use Strava\API\OAuth;
-
 include 'database.php';
 
 $db = Db::getInstance();
@@ -44,7 +45,7 @@ function signIn()
         $options = array(
             'clientId'     => 17350,
             'clientSecret' => 'f60291ad212a269051a09e3e18a8147c819c4342',
-            'redirectUri'  => 'http://localhost/data/strava_callback.php',
+            'redirectUri'  => 'http://umtl.dfki.de/~julian/data/strava_callback.php',
         );
         $oauth = new OAuth($options);
 

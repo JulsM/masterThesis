@@ -25,7 +25,7 @@ def plotElevation():
 
 
 def plotDifferenceElev():
-	data = np.genfromtxt('stravaGoogleElevation.csv', delimiter=',', skip_header=1)
+	data = np.genfromtxt('../output/stravaGoogleElevation.csv', delimiter=',', skip_header=1)
 
 	# print(data)
 	strava=data[:, :1]
@@ -46,8 +46,8 @@ def plotDifferenceElev():
 
 
 def plotCleanedupElev():
-	cleanData = np.genfromtxt('cleanedData.csv', delimiter=',')
-	xtremeData = np.genfromtxt('outputXPoints.csv', delimiter=',', skip_header=1)
+	cleanData = np.genfromtxt('../output/cleanedData.csv', delimiter=',')
+	xtremeData = np.genfromtxt('../output/elevProfile.csv', delimiter=',')
 
 	plt.subplot(3, 1, 1)
 	plt.plot(cleanData[:, 1:], cleanData[:, :1], label="cleaned up")
@@ -65,5 +65,5 @@ def plotCleanedupElev():
 
 	plt.show()
 
-plotCleanedupElev()
-# plotDifferenceElev()
+# plotCleanedupElev()
+plotDifferenceElev()

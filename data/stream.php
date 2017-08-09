@@ -53,6 +53,7 @@ function writeOutput($array, $name)
         $str.= $set[0] . ',' . $set[1] . ',' . $set[2] . '|';
     }
     $str = substr($str, 0, -1);
+    echo 'output string: '.$str;
     $fp     = fopen('output/'.$name.'.xml', 'w+');
     fwrite($fp, $str);
     fclose($fp);
@@ -76,7 +77,9 @@ function cleanGoogleElevation($elevArray, $distArray) {
 
         $lastDist = $distArray[$i];
     }
-    echo 'before: ' .count($distArray). ' after: '.count($distResponse).' ';
+    array_push($elevResponse, $elevArray[count($elevArray)-1]);
+    array_push($distResponse, $distArray[count($distArray)-1]);
+    echo 'remove measure points that are closer than 10 m distance, count before: ' .count($distArray). ' count after: '.count($distResponse).' <br>';
     return [$elevResponse, $distResponse];
 }
 
@@ -89,7 +92,7 @@ function cleanGoogleElevation($elevArray, $distArray) {
     </head>
     <body>
     <div style="width: 80%; height: 80%; margin: 5% auto">
-    <p>stream data:</p>
+    <p>Extrema data:</p>
     <?php
     ### get google elevation data
     $googleClient = new GoogleElevationClient();
@@ -132,7 +135,7 @@ function cleanGoogleElevation($elevArray, $distArray) {
 
     ### apply RDP algo
     $rdpResult = RDP::RamerDouglasPeucker2d($rdpList, 2.5);
-    echo count($rdpResult);
+    echo 'apply RDP algo. count: '.count($rdpResult) . '<br>';
     ###
     
     ### compute extreme points
@@ -148,7 +151,8 @@ function cleanGoogleElevation($elevArray, $distArray) {
     $lastExtremePoint = $response[0];
     $lastExtremeDist = 0;
     $outXPoints;
-
+    $pythonOut;
+    $pythonOut[] = array($lastWPDist , $lastWayPoint->elevation);
     for($i = 1; $i < count($wayPointsArray); $i++) {
         $currentWayPoint = $wayPointsArray[$i];
         $distBetween = $distanceArray[$i] - $lastWPDist;
@@ -161,15 +165,15 @@ function cleanGoogleElevation($elevArray, $distArray) {
         if($gradient < 20 || $gradient > -20) {  
             if($gradient > $gradientTreshold && $state != 'up') {
                 $state = 'up';
-                echo $state . ' ';
+                // echo $state . ' ';
 
             } elseif ($gradient < -$gradientTreshold && $state != 'down') {
                 $state = 'down';
-                echo $state. ' ';
+                // echo $state. ' ';
                 
             } elseif ($gradient >= -$gradientTreshold && $gradient <= $gradientTreshold && $state != 'flat') {
                 $state = 'flat';
-                echo $state. ' ';
+                // echo $state. ' ';
                 
             }
             if($state != $lastState && $lastState != 'null') {
@@ -177,6 +181,7 @@ function cleanGoogleElevation($elevArray, $distArray) {
                 $xtremGrad = round(($lastWayPoint->elevation - $lastExtremePoint->elevation)/($lastWPDist - $lastExtremeDist)  * 100, 2);
                 array_push($gpxWP, array(array($lastExtremePoint->location->lat, $lastExtremePoint->location->lng), $lastExtremePoint->elevation, $lastState.' '.$lastExtremeDist. ' '.$xtremGrad));
                 $outXPoints[] = array($lastWPDist , round(($lastWPDist - $lastExtremeDist), 0), $xtremGrad);
+                $pythonOut[] = array($lastWPDist , $lastWayPoint->elevation);
                 $lastExtremeDist = $lastWPDist;
                 $lastExtremePoint = $lastWayPoint;
                 $lastState = $state;
@@ -186,10 +191,13 @@ function cleanGoogleElevation($elevArray, $distArray) {
         }
         $lastWayPoint = $currentWayPoint;
         $lastWPDist = $distanceArray[$i];
+
     }
-    echo count($gpxWP);
+    // $pythonOut[] = array($distanceArray[$i-1] , $lastWayPoint->elevation);
+    echo 'resulted extrema points: '.count($gpxWP). '<br>';
     writeGPX($gpxWP, 'googleGPX');
     writeOutput($outXPoints, 'outputXPoints');
+    writeCsv($pythonOut, 'elevProfile');
     ###
 
 ?>
