@@ -1,5 +1,5 @@
 <?php
-include_once 'queryApi.php';
+include_once '../queryApi.php';
 include_once 'googleElevationClient.php';
 include_once 'RDP.php';
 
