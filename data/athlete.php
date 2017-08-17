@@ -1,6 +1,6 @@
 <?php
-include 'database.php';
-include 'queryApi.php';
+include '../database.php';
+include '../queryApi.php';
 
 if (isset($_POST['id'])) {
     $db     = Db::getInstance();

@@ -60,15 +60,23 @@ function writeOutput($array, $name)
    
 }
 
+// remove points which are too close to eachother
 function cleanGoogleElevation($elevArray, $distArray) {
     $elevResponse = array();
     $distResponse = array();
-    $distThreshold = 10;
+    $distThreshold = 5;
     $sum = 0;
+    // echo $distArray[0];
     $lastDist = $distArray[0];
+
+    // push first one
+    array_push($elevResponse, $elevArray[0]);
+    array_push($distResponse, $distArray[0]);
+
     for($i = 1; $i < count($distArray); $i++) {
         $dist = $distArray[$i] - $lastDist;
         $sum+= $dist;
+        // echo $sum . ' '.$dist . ', ';
         if($sum >= $distThreshold) {
             array_push($elevResponse, $elevArray[$i]);
             array_push($distResponse, $distArray[$i]);
@@ -77,9 +85,10 @@ function cleanGoogleElevation($elevArray, $distArray) {
 
         $lastDist = $distArray[$i];
     }
+    // push last one
     array_push($elevResponse, $elevArray[count($elevArray)-1]);
     array_push($distResponse, $distArray[count($distArray)-1]);
-    echo 'remove measure points that are closer than 10 m distance, count before: ' .count($distArray). ' count after: '.count($distResponse).' <br>';
+    echo 'remove measure points that are closer than 5 m distance, count before: ' .count($distArray). ' count after: '.count($distResponse).' <br>';
     return [$elevResponse, $distResponse];
 }
 
@@ -105,6 +114,7 @@ function cleanGoogleElevation($elevArray, $distArray) {
 
     ### clean google elevation data
     $cleanedData = cleanGoogleElevation($response, $distanceArray);
+    // $cleanedData = $response;
     ###
 
     ### write data in CSV and GPX files
@@ -134,7 +144,7 @@ function cleanGoogleElevation($elevArray, $distArray) {
     ###
 
     ### apply RDP algo
-    $rdpResult = RDP::RamerDouglasPeucker2d($rdpList, 2.5);
+    $rdpResult = RDP::RamerDouglasPeucker2d($rdpList, 3.5);
     echo 'apply RDP algo. count: '.count($rdpResult) . '<br>';
     ###
     

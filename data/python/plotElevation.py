@@ -53,7 +53,7 @@ def plotCleanedupElev():
 	plt.plot(cleanData[:, 1:], cleanData[:, :1], label="cleaned up")
 	plt.xlabel('cleaned')
 	plt.subplot(3, 1, 2)
-	result = rdp(cleanData, epsilon=2.5)
+	result = rdp(cleanData, epsilon=3.5)
 	plt.plot(result[:, 1:], result[:, :1], label="cleaned up")
 	plt.xlabel('RDP')
 	plt.subplot(3, 1, 3)
@@ -65,5 +65,5 @@ def plotCleanedupElev():
 
 	plt.show()
 
-# plotCleanedupElev()
-plotDifferenceElev()
+plotCleanedupElev()
+# plotDifferenceElev()
