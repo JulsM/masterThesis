@@ -25,7 +25,7 @@ def plotElevation():
 
 
 def plotDifferenceElev():
-	data = np.genfromtxt('../output/stravaGoogleElevation.csv', delimiter=',', skip_header=1)
+	data = np.genfromtxt('../output/stravaGoogleDifference.csv', delimiter=',', skip_header=1)
 
 	# print(data)
 	strava=data[:, :1]
@@ -66,4 +66,4 @@ def plotCleanedupElev():
 	plt.show()
 
 plotCleanedupElev()
-# plotDifferenceElev()
+plotDifferenceElev()
