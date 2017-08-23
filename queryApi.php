@@ -100,3 +100,20 @@ function getStream($token, $id, $type)
     }
     return $stream;
 }
+
+function getRoute($token, $id)
+{
+
+    try {
+        $adapter = new Pest('https://www.strava.com/api/v3');
+        $service = new REST($token, $adapter);
+        $client  = new Client($service);
+
+        $stream = $client->getStreamsRoute($id);
+
+    } catch (Exception $e) {
+        print $e->getMessage();
+    }
+    return $stream;
+}
+

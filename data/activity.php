@@ -4,12 +4,15 @@ include_once 'activityProcessing.php';
 
 
 if (isset($_POST['token']) && isset($_POST['id'])) {
-    $streamLatLong  = getStream($_POST['token'], $_POST['id'], "latlng");
-    $latlongArray   = $streamLatLong[0]['data'];
-    $distanceArray  = $streamLatLong[1]['data'];
-    $streamElev     = getStream($_POST['token'], $_POST['id'], "altitude");
-    $stravaElevation = $streamElev[1]['data'];
-
+    // $streamLatLong  = getStream($_POST['token'], $_POST['id'], "latlng");
+    // $latlongArray   = $streamLatLong[0]['data'];
+    // $distanceArray  = $streamLatLong[1]['data'];
+    // $streamElev     = getStream($_POST['token'], $_POST['id'], "altitude");
+    // $stravaElevation = $streamElev[1]['data'];
+    $route = getRoute($_POST['token'], 10271778);
+    $latlongArray = $route[0]['data'];
+    $distanceArray = $route[1]['data'];
+    $stravaElevation = $route[2]['data'];
 }
 
 ?>
