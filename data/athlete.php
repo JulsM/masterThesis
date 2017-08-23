@@ -27,7 +27,7 @@ if (isset($_POST['id'])) {
 
 		foreach ($activityArray as $ac) {
 		    echo '<div>'.$num.'. ' . $ac['name'] . ', distance: ' . $ac['distance'] / 1000 .' km, elapsed time: ' . round($ac['time'] / 60, 2 ). ' min, pace: ' . round($ac['average_speed'], 2 ). ' m/min, elevation gain: ' . $ac['elevation'] . ' m, VO2max: '. round($ac['vo2max'], 2) . ' workout type: '.$ac['workout_type'] . ' device: '.  $ac['device'];
-            echo '<form action="stream.php" method="post">
+            echo '<form action="activity.php" method="post">
                     <input type="hidden" name="id" value="'.$ac['id'].'">
                     <input type="hidden" name="token" value="'.$token.'">
                     <input type="submit" value="Compute string">

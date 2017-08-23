@@ -3,26 +3,6 @@ import matplotlib.pyplot as plt
 from rdp import rdp 
 
 
-def plotElevation():
-	data = np.genfromtxt('elevation.csv', delimiter=',', skip_header=1)
-
-	# print(data)
-	perc=data[:, :1]
-	grade=data[:, 1:2]
-	elev=data[:, 2:] / 10
-
-	perc= perc[:250]
-	grade = grade[:250]
-	elev = elev[:250]
-
-	plt.plot(perc, label="percent")
-	# plt.plot(grade, label="grade")
-	plt.plot(elev, label="elevation")
-	# plt.legend()
-
-
-	plt.show()
-
 
 def plotDifferenceElev():
 	data = np.genfromtxt('../output/stravaGoogleDifference.csv', delimiter=',', skip_header=1)
@@ -30,11 +10,12 @@ def plotDifferenceElev():
 	# print(data)
 	strava=data[:, :1]
 	google=data[:, 1:2]
+	dist=data[:, 2:3]
 	diff = abs(strava-google)
 
 	plt.subplot(2, 1, 1)
-	plt.plot(strava, label="strava")
-	plt.plot(google, label="google")
+	plt.plot(dist, strava, label="strava")
+	plt.plot(dist, google, label="google")
 	plt.legend()
 	plt.subplot(2, 1, 2)
 	y_pos = np.arange(len(diff))
@@ -46,7 +27,7 @@ def plotDifferenceElev():
 
 
 def plotCleanedupElev():
-	cleanData = np.genfromtxt('../output/cleanedData.csv', delimiter=',')
+	cleanData = np.genfromtxt('../output/originalData.csv', delimiter=',')
 	xtremeData = np.genfromtxt('../output/elevProfile.csv', delimiter=',')
 
 	plt.subplot(3, 1, 1)
