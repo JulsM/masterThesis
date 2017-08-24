@@ -29,9 +29,15 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     ### get google elevation data
     $googleElevation = getGoogleElevation($latlongArray);
 
+    echo 'google data, first: distance '.$distanceArray[0].' elevation '.$googleElevation[0]->elevation.'<br>';
+    echo 'google data, last: distance '.$distanceArray[count($distanceArray)-1].' elevation '.$googleElevation[count($googleElevation)-1]->elevation.'<br>';
+
     ### clean google elevation data
     $elevationDistanceArray = cleanGoogleElevation($googleElevation, $distanceArray);
     ###
+
+    echo 'clean data, first: distance '.$elevationDistanceArray[1][0].' elevation '.$elevationDistanceArray[0][0]->elevation.'<br>';
+    echo 'clean data, last: distance '.$elevationDistanceArray[1][count($elevationDistanceArray[0])-1].' elevation '.$elevationDistanceArray[0][count($elevationDistanceArray[0])-1]->elevation.'<br>';
 
 
     ### write data in CSV and GPX files
@@ -39,8 +45,11 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     ###
 
     ### apply RDP algo
-    $rdpResult = applyRDP($elevationDistanceArray, 3.5);
+    $rdpResult = applyRDP($elevationDistanceArray, 2.5);
     ###
+
+    echo 'rdp data, first: distance '.$rdpResult[0][0].' elevation '.$rdpResult[0][1]->elevation.'<br>';
+    echo 'rdp data, last: distance '.$rdpResult[count($rdpResult)-1][0].' elevation '.$rdpResult[count($rdpResult)-1][1]->elevation.'<br>';
 
     ### get elevation gain
     $elevationArray   = array_column($rdpResult, 1);
@@ -51,7 +60,11 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     ### compute extreme points
     $elevationArray   = array_column($rdpResult, 1);
     $distanceArray    = array_column($rdpResult, 0);
-    computeExtrema($elevationArray, $distanceArray);
+    // computeExtrema($elevationArray, $distanceArray);
+    $segments = computeSegments($elevationArray, $distanceArray);
+
+    echo 'segment data, first: distance '.$segments[0][0].' elevation '.$segments[0][1].'<br>';
+    echo 'segment data, last: distance '.$segments[count($segments)-1][0].' elevation '.$segments[count($segments)-1][1].'<br>';
 
     ###
 

@@ -28,23 +28,22 @@ def plotDifferenceElev():
 
 def plotCleanedupElev():
 	cleanData = np.genfromtxt('../output/originalData.csv', delimiter=',')
-	xtremeData = np.genfromtxt('../output/elevProfile.csv', delimiter=',')
+	segmentData = np.genfromtxt('../output/segments.csv', delimiter=',')
 
 	plt.subplot(3, 1, 1)
-	plt.plot(cleanData[:, 1:], cleanData[:, :1], label="cleaned up")
-	plt.xlabel('cleaned')
+	plt.plot(cleanData[:, 1:], cleanData[:, :1], 'g', label="cleaned")
+	# plt.subplot(3, 1, 2)
+	result = rdp(cleanData, epsilon=2.5)
+	plt.plot(result[:, 1:], result[:, :1], 'r', label="rdp")
+	plt.legend(fontsize="small", loc="lower center")
 	plt.subplot(3, 1, 2)
-	result = rdp(cleanData, epsilon=3.5)
-	plt.plot(result[:, 1:], result[:, :1], label="cleaned up")
-	plt.xlabel('RDP')
-	plt.subplot(3, 1, 3)
-	plt.plot(xtremeData[:, :1], xtremeData[:, 1:], label="xtreme")
-	plt.xlabel('extrema')
+	plt.plot(segmentData[:, :1], segmentData[:, 1:], label="segment")
+	plt.xlabel('segment')
 
-	print(len(cleanData), len(result))
+	# print(len(cleanData), len(result))
 
 
 	plt.show()
 
 plotCleanedupElev()
-plotDifferenceElev()
+# plotDifferenceElev()

@@ -59,6 +59,70 @@ function applyRDP($elevationDistanceArray, $delta) {
 	return $rdpResult;
 }
 
+function computeSegments($elevObjArray, $distanceArray) {
+
+	$segments = [];
+	$flatGradientTreshold = 1.8;
+	$steepGradientTreshold = 4.5;
+	// $currentElevPoint     = $elevObjArray[0];
+	// $currentDistPoint       = $distanceArray[0];
+	$prevElevPoint = $elevObjArray[0];
+	$prevDistPoint = $distanceArray[0];
+	$currentState = 0;
+	$prevState = 0;
+
+	$prevExtremeElev = $elevObjArray[0];
+	$prevExtremeDist = $distanceArray[0];
+	$segments[] = array($prevExtremeDist, $prevExtremeElev->elevation);
+
+
+	for ($i = 1; $i < count($elevObjArray); $i++) {
+		$currentElevPoint = $elevObjArray[$i];
+		$currentDistPoint = $distanceArray[$i];
+	    $relDist     = $currentDistPoint - $prevDistPoint;
+	    $gradient = 0;
+
+	    // compute gradient between two GPS points
+	    if ($relDist > 0) {
+	        $gradient = round(($currentElevPoint->elevation - $prevElevPoint->elevation) / $relDist * 100, 4);
+	    }
+
+	    // check for abnormal gradients
+	    if ($gradient < 20 || $gradient > -20) {
+
+	        if ($gradient >= $steepGradientTreshold) {
+	            $currentState = 'up2';
+	        } elseif ($gradient >= $flatGradientTreshold && $gradient < $steepGradientTreshold) {
+	            $currentState = 'up';
+	        } elseif ($gradient < $flatGradientTreshold && $gradient > -$flatGradientTreshold) {
+	            $currentState = 'level';
+	        } elseif ($gradient <= -$flatGradientTreshold && $gradient > -$steepGradientTreshold) {
+	            $currentState = 'down';
+	        } elseif ($gradient <= -$steepGradientTreshold) {
+	            $currentState = 'down2';
+	        }
+
+	        if ($currentState != $prevState && $prevState != 'null') {
+	        	$segments[] = array($prevExtremeDist, $prevExtremeElev->elevation);
+                $prevExtremeElev  = $prevElevPoint;
+                $prevExtremeDist = $prevDistPoint;
+                $prevState        = $currentState;
+	            
+	        } else {
+	            $prevState = $currentState;
+	        }
+	    }
+	    $prevElevPoint = $currentElevPoint;
+	    $prevDistPoint   = $currentDistPoint;
+
+	}
+
+	$segments[] = array($prevDistPoint, $prevElevPoint->elevation);
+	echo 'resulted segment points: ' . count($segments) . '<br>';
+	writeCsv($segments, 'segments');
+	return $segments;
+}
+
 function computeExtrema($elevObjArray, $distanceArray) {
 
 	$gpxWP            = array();
