@@ -36,8 +36,8 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     $elevationDistanceArray = cleanGoogleElevation($googleElevation, $distanceArray);
     ###
 
-    echo 'clean data, first: distance '.$elevationDistanceArray[1][0].' elevation '.$elevationDistanceArray[0][0]->elevation.'<br>';
-    echo 'clean data, last: distance '.$elevationDistanceArray[1][count($elevationDistanceArray[0])-1].' elevation '.$elevationDistanceArray[0][count($elevationDistanceArray[0])-1]->elevation.'<br>';
+    echo 'clean data, first: distance '.$elevationDistanceArray[1][0].' elevation '.$elevationDistanceArray[0][0].'<br>';
+    echo 'clean data, last: distance '.$elevationDistanceArray[1][count($elevationDistanceArray[0])-1].' elevation '.$elevationDistanceArray[0][count($elevationDistanceArray[0])-1].'<br>';
 
 
     ### write data in CSV and GPX files
@@ -48,8 +48,8 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     $rdpResult = applyRDP($elevationDistanceArray, 2.5);
     ###
 
-    echo 'rdp data, first: distance '.$rdpResult[0][0].' elevation '.$rdpResult[0][1]->elevation.'<br>';
-    echo 'rdp data, last: distance '.$rdpResult[count($rdpResult)-1][0].' elevation '.$rdpResult[count($rdpResult)-1][1]->elevation.'<br>';
+    echo 'rdp data, first: distance '.$rdpResult[0][0].' elevation '.$rdpResult[0][1].'<br>';
+    echo 'rdp data, last: distance '.$rdpResult[count($rdpResult)-1][0].' elevation '.$rdpResult[count($rdpResult)-1][1].'<br>';
 
     ### get elevation gain
     $elevationArray   = array_column($rdpResult, 1);

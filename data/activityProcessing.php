@@ -25,7 +25,7 @@ function cleanGoogleElevation($elevArray, $distArray)
     $lastDist = $distArray[0];
 
     // push first one
-    array_push($elevResponse, $elevArray[0]);
+    array_push($elevResponse, $elevArray[0]->elevation);
     array_push($distResponse, $distArray[0]);
 
     for ($i = 1; $i < count($distArray); $i++) {
@@ -33,7 +33,7 @@ function cleanGoogleElevation($elevArray, $distArray)
         $sum += $dist;
         // echo $sum . ' '.$dist . ', ';
         if ($sum >= $distThreshold) {
-            array_push($elevResponse, $elevArray[$i]);
+            array_push($elevResponse, $elevArray[$i]->elevation);
             array_push($distResponse, $distArray[$i]);
             $sum = 0;
         }
@@ -41,7 +41,7 @@ function cleanGoogleElevation($elevArray, $distArray)
         $lastDist = $distArray[$i];
     }
     // push last one
-    array_push($elevResponse, $elevArray[count($elevArray) - 1]);
+    array_push($elevResponse, $elevArray[count($elevArray) - 1]->elevation);
     array_push($distResponse, $distArray[count($distArray) - 1]);
     echo 'remove measure points that are closer than 5 m distance, count before: ' . count($distArray) . ' count after: ' . count($distResponse) . ' <br>';
     return [$elevResponse, $distResponse];
@@ -50,8 +50,8 @@ function cleanGoogleElevation($elevArray, $distArray)
 function applyRDP($elevationDistanceArray, $delta) {
 	$rdpList   = array();
 	$i         = 0;
-	foreach ($elevationDistanceArray[0] as $obj) {
-	    $rdpList[] = array($elevationDistanceArray[1][$i], $obj);
+	foreach ($elevationDistanceArray[0] as $elev) {
+	    $rdpList[] = array($elevationDistanceArray[1][$i], $elev);
 	    $i++;
 	}
 	$rdpResult = RDP::RamerDouglasPeucker2d($rdpList, $delta);
@@ -59,32 +59,32 @@ function applyRDP($elevationDistanceArray, $delta) {
 	return $rdpResult;
 }
 
-function computeSegments($elevObjArray, $distanceArray) {
+function computeSegments($elevArray, $distanceArray) {
 
 	$segments = [];
 	$flatGradientTreshold = 1.8;
 	$steepGradientTreshold = 4.5;
-	// $currentElevPoint     = $elevObjArray[0];
+	// $currentElevPoint     = $elevArray[0];
 	// $currentDistPoint       = $distanceArray[0];
-	$prevElevPoint = $elevObjArray[0];
+	$prevElevPoint = $elevArray[0];
 	$prevDistPoint = $distanceArray[0];
 	$currentState = 0;
 	$prevState = 0;
 
-	$prevExtremeElev = $elevObjArray[0];
+	$prevExtremeElev = $elevArray[0];
 	$prevExtremeDist = $distanceArray[0];
-	$segments[] = array($prevExtremeDist, $prevExtremeElev->elevation);
+	$segments[] = array($prevExtremeDist, $prevExtremeElev);
 
 
-	for ($i = 1; $i < count($elevObjArray); $i++) {
-		$currentElevPoint = $elevObjArray[$i];
+	for ($i = 1; $i < count($elevArray); $i++) {
+		$currentElevPoint = $elevArray[$i];
 		$currentDistPoint = $distanceArray[$i];
 	    $relDist     = $currentDistPoint - $prevDistPoint;
 	    $gradient = 0;
 
 	    // compute gradient between two GPS points
 	    if ($relDist > 0) {
-	        $gradient = round(($currentElevPoint->elevation - $prevElevPoint->elevation) / $relDist * 100, 4);
+	        $gradient = round(($currentElevPoint - $prevElevPoint) / $relDist * 100, 4);
 	    }
 
 	    // check for abnormal gradients
@@ -103,7 +103,7 @@ function computeSegments($elevObjArray, $distanceArray) {
 	        }
 
 	        if ($currentState != $prevState && $prevState != 'null') {
-	        	$segments[] = array($prevExtremeDist, $prevExtremeElev->elevation);
+	        	$segments[] = array($prevExtremeDist, $prevExtremeElev);
                 $prevExtremeElev  = $prevElevPoint;
                 $prevExtremeDist = $prevDistPoint;
                 $prevState        = $currentState;
@@ -117,7 +117,7 @@ function computeSegments($elevObjArray, $distanceArray) {
 
 	}
 
-	$segments[] = array($prevDistPoint, $prevElevPoint->elevation);
+	$segments[] = array($prevDistPoint, $prevElevPoint);
 	echo 'resulted segment points: ' . count($segments) . '<br>';
 	writeCsv($segments, 'segments');
 	return $segments;
@@ -197,9 +197,8 @@ function computeExtrema($elevObjArray, $distanceArray) {
 
 function computeElevationGain($elevArray) {
 	$elevGain = 0;
-	$lastAbsElev = $elevArray[0]->elevation;
-	foreach ($elevArray as $obj) {
-		$absElev = $obj->elevation;
+	$lastAbsElev = $elevArray[0];
+	foreach ($elevArray as $absElev) {
 		$relElev = $absElev - $lastAbsElev;
 
 		if($relElev > 0) {
@@ -228,8 +227,8 @@ function writeControlData($googleElevation, $stravaElevation, $distanceArray, $e
 
 	$originalList = array();
 	$i         = 0;
-	foreach ($elevationDistanceArray[0] as $obj) {
-	    array_push($originalList, array($obj->elevation, $elevationDistanceArray[1][$i]));
+	foreach ($elevationDistanceArray[0] as $elev) {
+	    array_push($originalList, array($elev, $elevationDistanceArray[1][$i]));
 	    $i++;
 	}
 	writeCsv($originalList, 'originalData');
