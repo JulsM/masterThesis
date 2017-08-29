@@ -4,15 +4,21 @@ include_once 'activityProcessing.php';
 
 
 if (isset($_POST['token']) && isset($_POST['id'])) {
-    // $streamLatLong  = getStream($_POST['token'], $_POST['id'], "latlng");
-    // $latlongArray   = $streamLatLong[0]['data'];
-    // $distanceArray  = $streamLatLong[1]['data'];
-    // $streamElev     = getStream($_POST['token'], $_POST['id'], "altitude");
-    // $stravaElevation = $streamElev[1]['data'];
-    $route = getRoute($_POST['token'], 10271778);
-    $latlongArray = $route[0]['data'];
-    $distanceArray = $route[1]['data'];
-    $stravaElevation = $route[2]['data'];
+    $streamLatLong  = getStream($_POST['token'], $_POST['id'], "latlng");
+    $latlongArray   = $streamLatLong[0]['data'];
+    $distanceArray  = $streamLatLong[1]['data'];
+    $streamElev     = getStream($_POST['token'], $_POST['id'], "altitude");
+    $stravaElevation = $streamElev[1]['data'];
+    $athleteName = $_POST['name'];
+    if(!is_dir("output/".$athleteName)) {
+        mkdir("output/".$athleteName);
+    }
+
+    ## test route
+    // $route = getRoute($_POST['token'], 10271778);
+    // $latlongArray = $route[0]['data'];
+    // $distanceArray = $route[1]['data'];
+    // $stravaElevation = $route[2]['data'];
 }
 
 ?>
@@ -26,6 +32,7 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     <div style="width: 80%; height: 80%; margin: 5% auto">
     <p>Extrema data:</p>
     <?php
+
     ### get google elevation data
     $googleElevation = getGoogleElevation($latlongArray);
 
@@ -41,7 +48,7 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
 
 
     ### write data in CSV and GPX files
-    writeControlData($googleElevation, $stravaElevation, $distanceArray, $elevationDistanceArray);
+    writeControlData($googleElevation, $stravaElevation, $distanceArray, $elevationDistanceArray, $athleteName);
     ###
 
     ### apply RDP algo
@@ -58,15 +65,45 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     ###
 
     ### compute extreme points
-    $elevationArray   = array_column($rdpResult, 1);
-    $distanceArray    = array_column($rdpResult, 0);
     // computeExtrema($elevationArray, $distanceArray);
-    $segments = computeSegments($elevationArray, $distanceArray);
+    $segments = computeSegments($rdpResult, 1.8, 4.5);
+    writeCsv($segments, $athleteName.'/segments');
+    ###
 
     echo 'segment data, first: distance '.$segments[0][0].' elevation '.$segments[0][1].'<br>';
     echo 'segment data, last: distance '.$segments[count($segments)-1][0].' elevation '.$segments[count($segments)-1][1].'<br>';
 
+    ### filter segments
+    $filteredSegments = filterSegments($segments);
+    writeCsv($filteredSegments, $athleteName.'/filteredSegments');
+    
+
+    // for ($i = 1; $i < count($s); $i++) {
+        
+    //  $length = $s[$i][0] - $s[$i - 1][0];
+    //  $gradient = 0;
+    //  if ($length > 0) {
+    //         $gradient = round(($s[$i][1] - $s[$i - 1][1]) / $length * 100, 4);
+    //     }
+    //  echo $s[$i][0] . ' '.$gradient.', ';
+        
+    // }
+    ### recompute segments
+    $recompSegments = computeSegments($filteredSegments, 1, 4);
+    writeCsv($recompSegments, $athleteName.'/recomputedSegments');
     ###
+
+    ### get elevation gain
+    $elevArray   = array_column($recompSegments, 1);
+    $elevationGain = computeElevationGain($elevArray);
+    echo 'elevation gain: ' . $elevationGain . '<br>';
+    ###
+
+    echo 'segment data, first: distance '.$recompSegments[0][0].' elevation '.$recompSegments[0][1].'<br>';
+    echo 'segment data, last: distance '.$recompSegments[count($recompSegments)-1][0].' elevation '.$recompSegments[count($recompSegments)-1][1].'<br>';
+
+
+    writeGPX($recompSegments, $athleteName.'/segmentsGPX', $distanceArray, $latlongArray);
 
     ?>
 

@@ -16,7 +16,7 @@ function getGoogleElevation($latlongArray) {
 
 // remove points which are too close to eachother
 function cleanGoogleElevation($elevArray, $distArray)
-{
+{	
     $elevResponse  = array();
     $distResponse  = array();
     $distThreshold = 5;
@@ -59,27 +59,27 @@ function applyRDP($elevationDistanceArray, $delta) {
 	return $rdpResult;
 }
 
-function computeSegments($elevArray, $distanceArray) {
+function computeSegments($distElevArray, $flatGradientTreshold, $steepGradientTreshold) {
 
+    $elevArray = array_column($distElevArray, 1);
+    $distArray = array_column($distElevArray, 0);
 	$segments = [];
-	$flatGradientTreshold = 1.8;
-	$steepGradientTreshold = 4.5;
-	// $currentElevPoint     = $elevArray[0];
-	// $currentDistPoint       = $distanceArray[0];
+	// $flatGradientTreshold = 1.5;
+	// $steepGradientTreshold = 4.5;
 	$prevElevPoint = $elevArray[0];
-	$prevDistPoint = $distanceArray[0];
+	$prevDistPoint = $distArray[0];
 	$currentState = 0;
 	$prevState = 0;
 
-	$prevExtremeElev = $elevArray[0];
-	$prevExtremeDist = $distanceArray[0];
-	$segments[] = array($prevExtremeDist, $prevExtremeElev);
+	$prevSegmentElev = $elevArray[0];
+	$prevSegmentDist = $distArray[0];
+	// $segments[] = array($prevSegmentDist, $prevSegmentElev);
 
 
 	for ($i = 1; $i < count($elevArray); $i++) {
 		$currentElevPoint = $elevArray[$i];
-		$currentDistPoint = $distanceArray[$i];
-	    $relDist     = $currentDistPoint - $prevDistPoint;
+		$currentDistPoint = $distArray[$i];
+	    $relDist = $currentDistPoint - $prevDistPoint;
 	    $gradient = 0;
 
 	    // compute gradient between two GPS points
@@ -88,7 +88,7 @@ function computeSegments($elevArray, $distanceArray) {
 	    }
 
 	    // check for abnormal gradients
-	    if ($gradient < 20 || $gradient > -20) {
+	    // if ($gradient < 20 || $gradient > -20) {
 
 	        if ($gradient >= $steepGradientTreshold) {
 	            $currentState = 'up2';
@@ -101,25 +101,69 @@ function computeSegments($elevArray, $distanceArray) {
 	        } elseif ($gradient <= -$steepGradientTreshold) {
 	            $currentState = 'down2';
 	        }
-
+	        // if state changed add point to segments
 	        if ($currentState != $prevState && $prevState != 'null') {
-	        	$segments[] = array($prevExtremeDist, $prevExtremeElev);
-                $prevExtremeElev  = $prevElevPoint;
-                $prevExtremeDist = $prevDistPoint;
-                $prevState        = $currentState;
+	        	$segments[] = array($prevSegmentDist, $prevSegmentElev);
+                $prevSegmentElev = $prevElevPoint;
+                $prevSegmentDist = $prevDistPoint;
+                $prevState = $currentState;
 	            
 	        } else {
 	            $prevState = $currentState;
 	        }
-	    }
+	    // }
 	    $prevElevPoint = $currentElevPoint;
-	    $prevDistPoint   = $currentDistPoint;
+	    $prevDistPoint = $currentDistPoint;
 
 	}
-
+	// add last 
+	$segments[] = array($prevSegmentDist, $prevSegmentElev);
 	$segments[] = array($prevDistPoint, $prevElevPoint);
 	echo 'resulted segment points: ' . count($segments) . '<br>';
-	writeCsv($segments, 'segments');
+	
+	return $segments;
+}
+
+function filterSegments($segments) {
+	$thresholdGradient = 7.5;
+	$minLength = 200;
+	// for ($i = 1; $i < count($segments); $i++) {
+		
+	// 	$length = $segments[$i][0] - $segments[$i - 1][0];
+	// 	$gradient = 0;
+	// 	if ($length > 0) {
+	//         $gradient = round(($segments[$i][1] - $segments[$i - 1][1]) / $length * 100, 4);
+	//     }
+	// 	echo $length . ' '.$gradient.', ';
+		
+	// }
+
+	## filter too steep gradients
+	for ($i = 1; $i < count($segments); $i++) {
+		
+		$length = $segments[$i][0] - $segments[$i - 1][0];
+		$gradient = 0;
+		if ($length > 0) {
+	        $gradient = round(($segments[$i][1] - $segments[$i - 1][1]) / $length * 100, 4);
+	    }
+		// echo $length . ' '.$gradient.', ';
+		if(($gradient > $thresholdGradient || $gradient < -$thresholdGradient) && $length < $minLength) {
+			array_splice($segments, $i, 1);
+		}
+	}
+	echo '<br>';
+
+	## filter too short segments
+	for ($i = 1; $i < count($segments); $i++) {
+		
+		$length = $segments[$i][0] - $segments[$i - 1][0];
+		
+		if($length < $minLength) {
+			array_splice($segments, $i, 1);
+		}
+	}
+	echo 'filtered segment points: ' . count($segments) . '<br>';
+	
 	return $segments;
 }
 
@@ -215,7 +259,7 @@ function computeElevationGain($elevArray) {
 
 ### write functions ###
 
-function writeControlData($googleElevation, $stravaElevation, $distanceArray, $elevationDistanceArray) {
+function writeControlData($googleElevation, $stravaElevation, $distanceArray, $elevationDistanceArray, $athleteName) {
 	$index        = 0;
 	$diffList     = array();
 	array_push($diffList, array('strava', 'google', 'distance'));
@@ -231,21 +275,22 @@ function writeControlData($googleElevation, $stravaElevation, $distanceArray, $e
 	    array_push($originalList, array($elev, $elevationDistanceArray[1][$i]));
 	    $i++;
 	}
-	writeCsv($originalList, 'originalData');
-	writeCsv($diffList, 'stravaGoogleDifference');
+	writeCsv($originalList, $athleteName.'/originalData');
+	writeCsv($diffList, $athleteName.'/stravaGoogleDifference');
 }
 
-function writeGPX($list, $name)
+function writeGPX($segments, $name, $distanceArray, $latlongArray)
 {
     $fp     = fopen('output/' . $name . '.gpx', 'w+');
     $header = '<?xml version="1.0" encoding="UTF-8"?>
     <gpx creator="Julian" version="1.0" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd" >';
     fwrite($fp, $header);
-    foreach ($list as $point) {
+    foreach ($segments as $point) {
 
-        $string = '<wpt lat="' . $point[0][0] . '" lon="' . $point[0][1] . '">
-        <ele>' . $point[1] . '</ele>
-        <name>' . $point[1] . ': ' . $point[2] . '</name>
+    	$index = array_search($point[0], $distanceArray);
+    	$latlong = $latlongArray[$index];
+        $string = '<wpt lat="' . $latlong[0] . '" lon="' . $latlong[1] . '">
+        <name>' . $point[1] .'</name>
         </wpt>
         ';
         fwrite($fp, $string);

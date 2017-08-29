@@ -29,6 +29,8 @@ def plotDifferenceElev():
 def plotCleanedupElev():
 	cleanData = np.genfromtxt('../output/originalData.csv', delimiter=',')
 	segmentData = np.genfromtxt('../output/segments.csv', delimiter=',')
+	filteredSegmentData = np.genfromtxt('../output/filteredSegments.csv', delimiter=',')
+	recompSegmentData = np.genfromtxt('../output/recomputedSegments.csv', delimiter=',')
 
 	plt.subplot(3, 1, 1)
 	plt.plot(cleanData[:, 1:], cleanData[:, :1], 'g', label="cleaned")
@@ -37,8 +39,12 @@ def plotCleanedupElev():
 	plt.plot(result[:, 1:], result[:, :1], 'r', label="rdp")
 	plt.legend(fontsize="small", loc="lower center")
 	plt.subplot(3, 1, 2)
-	plt.plot(segmentData[:, :1], segmentData[:, 1:], label="segment")
-	plt.xlabel('segment')
+	plt.plot(segmentData[:, :1], segmentData[:, 1:], 'g', label="segment")
+	plt.plot(filteredSegmentData[:, :1], filteredSegmentData[:, 1:], 'r', label="filtered")
+	plt.legend(fontsize="small", loc="lower center")
+	plt.subplot(3, 1, 3)
+	plt.plot(recompSegmentData[:, :1], recompSegmentData[:, 1:], 'g', label="recomputed")
+	plt.legend(fontsize="small", loc="lower center")
 
 	# print(len(cleanData), len(result))
 
