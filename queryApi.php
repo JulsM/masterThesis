@@ -19,7 +19,6 @@ function queryAthlete($token)
         $athlete = $client->getAthlete();
         $data    = array('stravaId' => $athlete['id'], 'mail' => $athlete['email'], 'name' => $athlete['firstname'] . ' ' . $athlete['lastname'], 'token' => $token);
         // print_r($athlete);
-        // print $athlete['firstname'] . ' ' . $athlete['lastname'] . '<br>';
         $stats = $client->getAthleteStats($athlete['id']);
 
     } catch (Exception $e) {
@@ -28,7 +27,7 @@ function queryAthlete($token)
     return $data;
 }
 
-function queryActivties($token, $name)
+function queryActivties($token, $number)
 {
 
     try {
@@ -36,38 +35,17 @@ function queryActivties($token, $name)
         $service = new REST($token, $adapter);
         $client  = new Client($service);
 
-        $activities     = $client->getAthleteActivities(null, null, null, 10);
+        $activities     = $client->getAthleteActivities(null, null, null, $number);
         $returnActivity = array();
-        $regressionData = array();
 
         foreach ($activities as $activity) {
             if (strtolower($activity['type']) == 'run') {
-
                 $ac      = $client->getActivity($activity['id']);
-                $mPerSec = $ac['distance'] / ($ac['elapsed_time'] / 60);
-                $vo2max  = vo2max($mPerSec, $ac['elapsed_time'] / 60);
-
-                $data = array('id' => $ac['id'],
-                    'name'             => $ac['name'],
-                    'distance'         => $ac['distance'],
-                    'time'             => $ac['elapsed_time'],
-                    'average_speed'    => $mPerSec,
-                    'elevation'        => $ac['total_elevation_gain'],
-                    'vo2max'           => $vo2max,
-                    'workout_type'     => $ac['workout_type']);
-                if(array_key_exists('device_name', $ac)) {
-                    $data['device'] = $ac['device_name'];
-                } else {
-                    $data['device'] = 'unknown';
-                }
+                $data = array_merge(array('id' => $ac['id']), $activity);
                 array_push($returnActivity, $data);
-
-                $regressionData[] = array($ac['elapsed_time'] / 60, $ac['distance'] / 1000, $mPerSec, $ac['total_elevation_gain'] / 1000, $vo2max);
-
             }
 
         }
-        // writeRegressionCsv($regressionData, $name);
 
     } catch (Exception $e) {
         print $e->getMessage();
@@ -75,15 +53,6 @@ function queryActivties($token, $name)
     return $returnActivity;
 }
 
-function writeRegressionCsv($list, $name)
-{
-    $fp = fopen('data/output/' . $name . '_data.csv', 'w+');
-    fputcsv($fp, array('time', 'distance', 'pace', 'elevation', 'vo2max'));
-    foreach ($list as $line) {
-        fputcsv($fp, $line);
-    }
-    fclose($fp);
-}
 
 function getStream($token, $id, $type)
 {

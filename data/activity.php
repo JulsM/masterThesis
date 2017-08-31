@@ -15,7 +15,7 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     }
 
     ## test route
-    // $route = getRoute($_POST['token'], 10271778);
+    // $route = getRoute($_POST['token'], 10393066);
     // $latlongArray = $route[0]['data'];
     // $distanceArray = $route[1]['data'];
     // $stravaElevation = $route[2]['data'];
@@ -94,9 +94,9 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     ###
 
     ### get elevation gain
-    $elevArray   = array_column($recompSegments, 1);
-    $elevationGain = computeElevationGain($elevArray);
-    echo 'elevation gain: ' . $elevationGain . '<br>';
+    // $elevArray   = array_column($recompSegments, 1);
+    // $elevationGain = computeElevationGain($elevArray);
+    // echo 'elevation gain: ' . $elevationGain . '<br>';
     ###
 
     echo 'segment data, first: distance '.$recompSegments[0][0].' elevation '.$recompSegments[0][1].'<br>';
@@ -104,6 +104,10 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
 
 
     writeGPX($recompSegments, $athleteName.'/segmentsGPX', $distanceArray, $latlongArray);
+
+    ### write output string
+    writeOutput($recompSegments, $athleteName.'/outputString');
+    ###
 
     ?>
 

@@ -84,7 +84,7 @@ function computeSegments($distElevArray, $flatGradientTreshold, $steepGradientTr
 
 	    // compute gradient between two GPS points
 	    if ($relDist > 0) {
-	        $gradient = round(($currentElevPoint - $prevElevPoint) / $relDist * 100, 4);
+	        $gradient = getGradient($relDist, $currentElevPoint - $prevElevPoint);
 	    }
 
 	    // check for abnormal gradients
@@ -144,7 +144,7 @@ function filterSegments($segments) {
 		$length = $segments[$i][0] - $segments[$i - 1][0];
 		$gradient = 0;
 		if ($length > 0) {
-	        $gradient = round(($segments[$i][1] - $segments[$i - 1][1]) / $length * 100, 4);
+	        $gradient = getGradient($length, $segments[$i][1] - $segments[$i - 1][1]);
 	    }
 		// echo $length . ' '.$gradient.', ';
 		if(($gradient > $thresholdGradient || $gradient < -$thresholdGradient) && $length < $minLength) {
@@ -167,77 +167,7 @@ function filterSegments($segments) {
 	return $segments;
 }
 
-function computeExtrema($elevObjArray, $distanceArray) {
 
-	$gpxWP            = array();
-	$gradientTreshold = 2.5;
-	$minSegmentLength = 150;
-	$segmentLength    = 0;
-	$lastWayPoint     = $elevObjArray[0];
-	$lastWPDist       = $distanceArray[0];
-	$state            = 'null';
-	$lastState        = 'null';
-
-	$lastExtremePoint = $lastWayPoint;
-	$lastExtremeDist  = $lastWPDist;
-	$outXPoints;
-	$pythonOut;
-	$pythonOut[] = array($lastWPDist, $lastWayPoint->elevation);
-	for ($i = 1; $i < count($elevObjArray); $i++) {
-	    $currentWayPoint = $elevObjArray[$i];
-	    $distBetween     = $distanceArray[$i] - $lastWPDist;
-	    $segmentLength += $distBetween;
-	    if ($distBetween > 0) {
-	        $gradient = round(($currentWayPoint->elevation - $lastWayPoint->elevation) / $distBetween * 100, 4);
-	    } else {
-	        $gradient = 0;
-	    }
-
-	    if ($gradient < 20 || $gradient > -20) {
-	        if ($gradient > $gradientTreshold && $state != 'up') {
-	            $state = 'up';
-	            // echo $state . ' ';
-
-	        } elseif ($gradient < -$gradientTreshold && $state != 'down') {
-	            $state = 'down';
-	            // echo $state. ' ';
-
-	        } elseif ($gradient >= -$gradientTreshold && $gradient <= $gradientTreshold && $state != 'flat') {
-	            $state = 'flat';
-	            // echo $state. ' ';
-
-	        }
-	        if ($state != $lastState && $lastState != 'null') {
-	            if($segmentLength >= $minSegmentLength) {
-	                $xtremGrad = round(($lastWayPoint->elevation - $lastExtremePoint->elevation) / ($lastWPDist - $lastExtremeDist) * 100, 2);
-
-	                array_push($gpxWP, array(array($lastExtremePoint->location->lat, $lastExtremePoint->location->lng), $lastExtremePoint->elevation, $lastState . ' ' . $lastExtremeDist . ' ' . $xtremGrad));
-
-	                $outXPoints[]     = array($lastWPDist, round(($lastWPDist - $lastExtremeDist), 0), $xtremGrad);
-	                $pythonOut[]      = array($lastWPDist, $lastWayPoint->elevation);
-	                $lastExtremeDist  = $lastWPDist;
-	                $lastExtremePoint = $lastWayPoint;
-	                $lastState        = $state;
-	                $segmentLength    = 0;
-	            }
-	        } else {
-	            $lastState = $state;
-	        }
-	    }
-	    $lastWayPoint = $currentWayPoint;
-	    $lastWPDist   = $distanceArray[$i];
-
-	}
-
-	$xtremGrad = round(($lastWayPoint->elevation - $lastExtremePoint->elevation) / ($lastWPDist - $lastExtremeDist) * 100, 2);
-	$gpxWP[] = array(array($lastExtremePoint->location->lat, $lastExtremePoint->location->lng), $lastExtremePoint->elevation, $lastState . ' ' . $lastExtremeDist . ' ' . $xtremGrad);
-	$outXPoints[] = array($lastWPDist, round(($lastWPDist - $lastExtremeDist), 0), $xtremGrad);
-	$pythonOut[]  = array($lastWPDist, $lastWayPoint->elevation);
-	echo 'resulted extrema points: ' . count($gpxWP) . '<br>';
-	writeGPX($gpxWP, 'googleGPX');
-	writeOutput($outXPoints, 'outputXPoints');
-	writeCsv($pythonOut, 'elevProfile');
-}
 
 function computeElevationGain($elevArray) {
 	$elevGain = 0;
@@ -252,6 +182,14 @@ function computeElevationGain($elevArray) {
 		$lastAbsElev = $absElev;
 	}
 	return $elevGain;
+}
+
+function getGradient($length, $height) {
+	$gradient = 0;
+	if ($length > 0) {
+        $gradient = round($height / $length * 100, 2);
+    }
+    return $gradient;
 }
 
 
@@ -309,11 +247,15 @@ function writeCsv($list, $name)
     fclose($fp);
 }
 
-function writeOutput($array, $name)
+function writeOutput($segments, $name)
 {
     $str = '';
-    foreach ($array as $set) {
-        $str .= $set[0] . ',' . $set[1] . ',' . $set[2] . '|';
+    $prevSegm = $segments[0];
+    for($i = 1; $i < count($segments); $i++) {
+    	$relDist = $segments[$i][0] - $prevSegm[0];
+    	$gradient = getGradient($relDist, $segments[$i][1] - $prevSegm[1]);
+        $str .= $prevSegm[0] . ',' . $relDist . ',' . $gradient . '|';
+        $prevSegm = $segments[$i];
     }
     $str = substr($str, 0, -1);
     echo 'output string: ' . $str;
@@ -321,4 +263,14 @@ function writeOutput($array, $name)
     fwrite($fp, $str);
     fclose($fp);
 
+}
+
+function writeRegressionCsv($list, $name)
+{
+    $fp = fopen('data/output/' . $name . '_data.csv', 'w+');
+    fputcsv($fp, array('time', 'distance', 'pace', 'elevation', 'vo2max'));
+    foreach ($list as $line) {
+        fputcsv($fp, $line);
+    }
+    fclose($fp);
 }
