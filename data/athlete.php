@@ -1,14 +1,18 @@
 <?php
-include '../database.php';
-include '../queryApi.php';
-
+require_once '../database.php';
+require_once '../StravaApiClient.php';
+require_once 'App.php';
+session_start();
 if (isset($_POST['id'])) {
     $db     = Db::getInstance();
     $conn   = $db->getConnection();
     $result = $db->query('SELECT token FROM users WHERE id =' . $_POST['id']);
     if (!empty($result)) {
-        $token         = $result[0]['token'];
-        $activityArray = queryActivties($token, 20);
+        $token = $result[0]['token'];
+        $_SESSION['token'] = $token;
+        $app->createStravaApi($token);
+        $api = $app->getApi();
+        $activityArray = $api->queryActivties(20);
     }
 }
 
@@ -36,7 +40,6 @@ if (isset($_POST['id'])) {
             }
             echo '<form action="activity.php" method="post">
                     <input type="hidden" name="id" value="'.$ac['id'].'">
-                    <input type="hidden" name="token" value="'.$token.'">
                     <input type="hidden" name="name" value="'.$_POST['name'].'">
                     <input type="submit" value="Compute string">
                 </form>'.' <br><br> </div>';

@@ -1,6 +1,6 @@
 <?php
 include 'StravaPHP/vendor/autoload.php';
-include 'queryApi.php';
+include 'StravaApiClient.php';
 
 // $callbackUrl = 'http://localhost/data/strava_callback.php';
 // $callbackUrl = 'http://umtl.dfki.de/~julian/data/strava_callback.php';
@@ -13,14 +13,15 @@ $db = Db::getInstance();
 $conn = $db->getConnection();
 
 
+
 if (isset($_POST['email']) && $_POST['email'] != "" && !isset($_GET['code'])) {
     $result = $db->query('SELECT * FROM users WHERE email = \'' . $_POST['email'] . '\'');
     // print_r($result);
     if (empty($result)) {
-        echo 'Email not in db. Connect with Strava';
+        // echo 'Email not in db. Connect with Strava';
         signIn();
     } else {
-        echo 'Already in DB';
+        // echo 'Already in DB';
         header('Location: index.php?redirect');
         exit;
 
@@ -28,7 +29,8 @@ if (isset($_POST['email']) && $_POST['email'] != "" && !isset($_GET['code'])) {
 } else if (isset($_GET['code'])) {
     $token = signIn();
     if ($token != '') {
-        $athleteData = queryAthlete($token);
+        $api = new StravaApiClient($token);
+        $athleteData = $api->queryAthlete();
         $db->saveAthlete($athleteData);
         header('Location: index.php?redirect');
         exit;

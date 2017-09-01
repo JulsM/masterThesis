@@ -1,13 +1,16 @@
 <?php
-include_once '../queryApi.php';
-include_once 'activityProcessing.php';
+require_once '../StravaApiClient.php';
+require_once 'activityProcessing.php';
+require_once 'App.php';
+session_start();
 
-
-if (isset($_POST['token']) && isset($_POST['id'])) {
-    $streamLatLong  = getStream($_POST['token'], $_POST['id'], "latlng");
+if (isset($_SESSION['token']) && isset($_POST['id'])) {
+    $app->createStravaApi($_SESSION['token']);
+    $api = $app->getApi();
+    $streamLatLong  = $api->getStream($_POST['id'], "latlng");
     $latlongArray   = $streamLatLong[0]['data'];
     $distanceArray  = $streamLatLong[1]['data'];
-    $streamElev     = getStream($_POST['token'], $_POST['id'], "altitude");
+    $streamElev     = $api->getStream($_POST['id'], "altitude");
     $stravaElevation = $streamElev[1]['data'];
     $athleteName = $_POST['name'];
     if(!is_dir("output/".$athleteName)) {
@@ -19,6 +22,10 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     // $latlongArray = $route[0]['data'];
     // $distanceArray = $route[1]['data'];
     // $stravaElevation = $route[2]['data'];
+
+    $gradeSmooth  = $api->getStream($_POST['id'], "grade_smooth");
+    $hr  = $api->getStream($_POST['id'], "heartrate");
+    $velocitySmooth  = $api->getStream($_POST['id'], "velocity_smooth");
 }
 
 ?>
