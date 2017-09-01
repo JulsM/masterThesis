@@ -24,8 +24,23 @@ if (isset($_SESSION['token']) && isset($_POST['id'])) {
     // $stravaElevation = $route[2]['data'];
 
     $gradeSmooth  = $api->getStream($_POST['id'], "grade_smooth");
+    $a = array();
+    for($i = 0; $i < count($gradeSmooth[0]['data']); $i++) {
+        $a[] = array($gradeSmooth[0]['data'][$i], $gradeSmooth[1]['data'][$i]);
+    }
+    writeCsv($a, $athleteName.'/gradeSmooth');
+    
     $hr  = $api->getStream($_POST['id'], "heartrate");
     $velocitySmooth  = $api->getStream($_POST['id'], "velocity_smooth");
+    $a = array();
+    for($i = 0; $i < count($hr[0]['data']); $i++) {
+        $a[] = array($hr[0]['data'][$i], $hr[1]['data'][$i], $velocitySmooth[1]['data'][$i]);
+    }
+    writeCsv($a, $athleteName.'/hr_velocity');
+
+    
+    
+
 }
 
 ?>

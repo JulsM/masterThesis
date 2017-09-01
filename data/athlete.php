@@ -12,7 +12,7 @@ if (isset($_POST['id'])) {
         $_SESSION['token'] = $token;
         $app->createStravaApi($token);
         $api = $app->getApi();
-        $activityArray = $api->queryActivties(20);
+        $activityArray = $api->queryActivties(10);
     }
 }
 
