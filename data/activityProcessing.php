@@ -151,7 +151,6 @@ function filterSegments($segments) {
 			array_splice($segments, $i, 1);
 		}
 	}
-	echo '<br>';
 
 	## filter too short segments
 	for ($i = 1; $i < count($segments); $i++) {
@@ -168,28 +167,75 @@ function filterSegments($segments) {
 }
 
 
-
-function computeElevationGain($elevArray) {
-	$elevGain = 0;
-	$lastAbsElev = $elevArray[0];
-	foreach ($elevArray as $absElev) {
-		$relElev = $absElev - $lastAbsElev;
-
-		if($relElev > 0) {
-			$elevGain += $relElev;
-			// echo $relElev . ' ';
-		}
-		$lastAbsElev = $absElev;
-	}
-	return $elevGain;
-}
-
 function getGradient($length, $height) {
 	$gradient = 0;
 	if ($length > 0) {
         $gradient = round($height / $length * 100, 2);
     }
     return $gradient;
+}
+
+
+function calculateElevationGain($elevArray) {
+	$up = 0;
+	$down = 0;
+	$lastAbsElev = $elevArray[0];
+	foreach ($elevArray as $absElev) {
+		$relElev = $absElev - $lastAbsElev;
+
+		if($relElev > 0) {
+			$up += $relElev;
+		} else if($relElev < 0) {
+			$down += $relElev;
+		}
+		$lastAbsElev = $absElev;
+	}
+	return [$up, $down];
+}
+
+function getFietsIndex($distance, $relElevation, $altitudeAtTop) {
+        if ($relElevation < 0) {
+            return 0.0;
+        }
+        $index = $relElevation * $relElevation / ($distance * 10);
+        $altitudeBonus = max(0, ($altitudeAtTop - 1000) / 1000);
+        return $index + $altitudeBonus;
+}
+
+function computeClimbs($segments) {
+	$gradientClimbThreshold = 2;
+	$startDist = 0;
+    $startElev = 0;
+    $climbs = [];
+    $tempClimb = [];
+    for ($i = 1; $i < count($segments); $i++) {
+        $length = $segments[$i][0] - $segments[$i - 1][0];
+        $gradient = getGradient($length, $segments[$i][1] - $segments[$i - 1][1]);
+        if($gradient > $gradientClimbThreshold && $startDist == 0) {
+        	$startDist = $segments[$i-1][0];
+        	$startElev = $segments[$i-1][1];
+            echo 'climb start: '.$startDist.' elev:'.$startElev.' ';
+            $tempClimb[] = array($startDist, $startElev);
+        } else if($gradient > $gradientClimbThreshold) {
+        	$tempClimb[] = array($segments[$i-1][0], $segments[$i-1][1]);
+    	} else if($gradient <= $gradientClimbThreshold && $startDist > 0) {
+    		$tempClimb[] = array($segments[$i-1][0], $segments[$i-1][1]);
+        	$climbs[] = $tempClimb;
+        	$tempClimb = [];
+        	$fiets = getFietsIndex($segments[$i-1][0] - $startDist, $segments[$i-1][1] - $startElev, $segments[$i-1][1]);
+            echo 'climb end: '.$segments[$i-1][0].' elev:'.$segments[$i-1][1].' fiets: '.$fiets.'<br>';
+            $startDist = 0;
+            $startElev = 0;
+        }
+             
+    }
+    if($startDist > 0) {
+    	$tempClimb[] = array($segments[$i-1][0], $segments[$i-1][1]);
+        $climbs[] = $tempClimb;
+    	$fiets = getFietsIndex($segments[$i-1][0] - $startDist, $segments[$i-1][1] - $startElev, $segments[$i-1][1]);
+        echo 'climb end: '.$segments[$i-1][0].' elev:'.$segments[$i-1][1].' fiets: '.$fiets.'<br>';
+    }
+    return $climbs;
 }
 
 
@@ -246,6 +292,7 @@ function writeCsv($list, $name)
     }
     fclose($fp);
 }
+
 
 function writeOutput($segments, $name)
 {

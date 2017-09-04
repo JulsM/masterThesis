@@ -23,7 +23,7 @@ def plotHrVelElev():
 	
 
 	plt.subplot(1, 1, 1)
-	plt.plot(hrVel[:, :1], hrVel[:, 1:2]+200, 'g', label="hr")
+	plt.plot(hrVel[:, :1], hrVel[:, 1:2]+250, 'g', label="hr")
 	plt.plot(hrVel[:, :1], hrVel[:, 2:]*5+280, 'b', label="velocity")
 	plt.plot(cleanData[:, 1:], cleanData[:, :1], 'r', label="elevation")
 	plt.legend(fontsize="small", loc="lower center")

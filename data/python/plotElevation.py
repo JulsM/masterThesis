@@ -31,6 +31,21 @@ def plotCleanedupElev():
 	segmentData = np.genfromtxt('../output/segments.csv', delimiter=',')
 	filteredSegmentData = np.genfromtxt('../output/filteredSegments.csv', delimiter=',')
 	recompSegmentData = np.genfromtxt('../output/recomputedSegments.csv', delimiter=',')
+	# climbs = np.genfromtxt('../output/climbs.csv', delimiter=',', missing_values=0.0)
+	climbs = []
+	climbs.append([])
+	climbs.append([])
+	with open('../output/climbs.csv') as f:
+		lines=f.readlines()
+		for line in lines:
+			l = np.fromstring(line, dtype=float, sep=',')
+			dist = l[::2]
+			elev = l[1::2]
+			climbs[0].extend(dist)
+			climbs[1].extend(elev)
+			climbs[0].extend([float('nan')])
+			climbs[1].extend([float('nan')])
+			
 
 	plt.subplot(3, 1, 1)
 	plt.plot(cleanData[:, 1:], cleanData[:, :1], 'g', label="cleaned")
@@ -44,9 +59,8 @@ def plotCleanedupElev():
 	plt.legend(fontsize="small", loc="lower center")
 	plt.subplot(3, 1, 3)
 	plt.plot(recompSegmentData[:, :1], recompSegmentData[:, 1:], 'g', label="recomputed")
+	plt.plot(climbs[0], climbs[1], 'r', label="climbs")
 	plt.legend(fontsize="small", loc="lower center")
-
-	# print(len(cleanData), len(result))
 
 
 	plt.show()

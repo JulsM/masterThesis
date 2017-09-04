@@ -38,7 +38,7 @@ class StravaApiClient {
         return $data;
     }
 
-    public function queryActivties($number)
+    public function getActivties($number)
     {
 
         try {
@@ -49,7 +49,10 @@ class StravaApiClient {
             foreach ($activities as $activity) {
                 if (strtolower($activity['type']) == 'run') {
                     $ac      = $this->client->getActivity($activity['id']);
-                    $data = array_merge(array('id' => $ac['id']), $activity);
+                    if(array_key_exists('device_name', $ac)) {
+                        $data = array_merge(array('device_name' => $ac['device_name']), $activity);
+                    }
+                    $data = array_merge(array('id' => $ac['id']), $data);
                     array_push($returnActivity, $data);
                 }
 
@@ -60,6 +63,19 @@ class StravaApiClient {
         }
         return $returnActivity;
     }
+
+    public function getActivty($id)
+    {
+
+        try {
+            $ac = $this->client->getActivity($id);
+            
+        } catch (Exception $e) {
+            print $e->getMessage();
+        }
+        return $ac;
+    }
+
 
 
     public function getStream($activityId, $type)
