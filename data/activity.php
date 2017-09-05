@@ -104,14 +104,14 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     writeCsv($recompSegments, $athleteName.'/recomputedSegments');
     ###
 
-    echo 'gradients: ';
-    for ($i = 1; $i < count($recompSegments); $i++) {
+    // echo 'gradients: ';
+    // for ($i = 1; $i < count($recompSegments); $i++) {
         
-    $length = $recompSegments[$i][0] - $recompSegments[$i - 1][0];
-    $gradient = getGradient($length, $recompSegments[$i][1] - $recompSegments[$i - 1][1]);
-    echo $recompSegments[$i][0] . ' '.$gradient.', ';
+    // $length = $recompSegments[$i][0] - $recompSegments[$i - 1][0];
+    // $gradient = getGradient($length, $recompSegments[$i][1] - $recompSegments[$i - 1][1]);
+    // echo $recompSegments[$i][0] . ' '.$gradient.', ';
         
-    }
+    // }
 
     ### get elevation gain
     // $elevArray   = array_column($recompSegments, 1);
@@ -148,21 +148,8 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     ### climbs
     // print climbs
     $climbs = computeClimbs($recompSegments);
-    $list = [];
-    foreach ($climbs as $climb) {
-        $points = [];
-        foreach ($climb as $point) {
-            $points[] = $point[0];
-            $points[] = $point[1];
-        }
-        $list[] = $points;
-        
-    }
-    // print_r($list);
-    writeCsv($list, $athleteName.'/climbs');
-
-
-
+    writeClimbs($climbs, $athleteName.'/climbs');
+    echo 'number of climbs: '.count($climbs).'<br>';
     ###
 
     ?>

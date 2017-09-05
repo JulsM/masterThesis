@@ -204,32 +204,60 @@ function getFietsIndex($distance, $relElevation, $altitudeAtTop) {
 
 function computeClimbs($segments) {
 	$gradientClimbThreshold = 2;
+	$minClimbLength = 350;
+	$maxBetweenDown = 300;
 	$startDist = 0;
     $startElev = 0;
+    $betweenClimbDownDist = 0;
+    $tempDownClimb = [];
     $climbs = [];
     $tempClimb = [];
+    $tempEnd = [];
     for ($i = 1; $i < count($segments); $i++) {
         $length = $segments[$i][0] - $segments[$i - 1][0];
         $gradient = getGradient($length, $segments[$i][1] - $segments[$i - 1][1]);
-        if($gradient > $gradientClimbThreshold && $startDist == 0) {
+        
+        if($gradient > $gradientClimbThreshold && $startDist == 0) { // start climb
         	$startDist = $segments[$i-1][0];
         	$startElev = $segments[$i-1][1];
             echo 'climb start: '.$startDist.' elev:'.$startElev.' ';
             $tempClimb[] = array($startDist, $startElev);
-        } else if($gradient > $gradientClimbThreshold) {
+
+        } else if($gradient > $gradientClimbThreshold) { // continue climb uphill
+        	if(!empty($tempDownClimb)) {
+        		$tempClimb = array_merge($tempClimb, $tempDownClimb);
+        	}
         	$tempClimb[] = array($segments[$i-1][0], $segments[$i-1][1]);
-    	} else if($gradient <= $gradientClimbThreshold && $startDist > 0) {
-    		$tempClimb[] = array($segments[$i-1][0], $segments[$i-1][1]);
+        	$betweenClimbDownDist = 0;
+        	$tempDownClimb = [];
+
+    	} else if($gradient <= $gradientClimbThreshold && $startDist > 0) { // end climb
+    		// if(empty($tempEnd)) {
+    		// 	$tempEnd = array($segments[$i-1][0], $segments[$i-1][1]);
+    		// }
+    		$tempDownClimb[] = array($segments[$i-1][0], $segments[$i-1][1]);
+    		$betweenClimbDownDist += $length;
+        }
+        // if inbetween downhill is to long, end climb
+        if($betweenClimbDownDist > $maxBetweenDown && $startDist > 0 && !empty($tempDownClimb)) { 
+        	
+        	$tempClimb[] = $tempDownClimb[0];
+        	// print_r($tempClimb);
         	$climbs[] = $tempClimb;
         	$tempClimb = [];
-        	$fiets = getFietsIndex($segments[$i-1][0] - $startDist, $segments[$i-1][1] - $startElev, $segments[$i-1][1]);
-            echo 'climb end: '.$segments[$i-1][0].' elev:'.$segments[$i-1][1].' fiets: '.$fiets.'<br>';
+        	$fiets = getFietsIndex($tempDownClimb[0][0] - $startDist, $tempDownClimb[0][1] - $startElev, $tempDownClimb[0][1]);
+            echo 'climb end: '.$tempDownClimb[0][0].' elev:'.$tempDownClimb[0][1].' fiets: '.$fiets.'<br>';
             $startDist = 0;
             $startElev = 0;
+            $tempDownClimb = [];
+            $betweenClimbDownDist = 0;
         }
              
     }
     if($startDist > 0) {
+    	if(!empty($tempDownClimb[0])) {
+    		$tempClimb = array_merge($tempClimb, $tempDownClimb[0]);
+    	}
     	$tempClimb[] = array($segments[$i-1][0], $segments[$i-1][1]);
         $climbs[] = $tempClimb;
     	$fiets = getFietsIndex($segments[$i-1][0] - $startDist, $segments[$i-1][1] - $startElev, $segments[$i-1][1]);
@@ -291,6 +319,21 @@ function writeCsv($list, $name)
         fputcsv($fp, $line);
     }
     fclose($fp);
+}
+
+function writeClimbs($climbs, $name) {
+	$list = [];
+    foreach ($climbs as $climb) {
+        $points = [];
+        foreach ($climb as $point) {
+            $points[] = $point[0];
+            $points[] = $point[1];
+        }
+        $list[] = $points;
+        
+    }
+    // print_r($list);
+    writeCsv($list, $name);
 }
 
 
