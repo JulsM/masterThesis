@@ -1,6 +1,7 @@
 <?php
 include_once 'googleElevationClient.php';
 include_once 'RDP.php';
+include_once 'Configuration.php';
 ### processing elevation data ###
 
 
@@ -19,7 +20,7 @@ function cleanGoogleElevation($elevArray, $distArray)
 {	
     $elevResponse  = array();
     $distResponse  = array();
-    $distThreshold = 5;
+    $distThreshold = Config::$cleanMinDist;
     $sum           = 0;
     // echo $distArray[0];
     $lastDist = $distArray[0];
@@ -64,8 +65,6 @@ function computeSegments($distElevArray, $flatGradientTreshold, $steepGradientTr
     $elevArray = array_column($distElevArray, 1);
     $distArray = array_column($distElevArray, 0);
 	$segments = [];
-	// $flatGradientTreshold = 1.5;
-	// $steepGradientTreshold = 4.5;
 	$prevElevPoint = $elevArray[0];
 	$prevDistPoint = $distArray[0];
 	$currentState = 0;
@@ -125,8 +124,8 @@ function computeSegments($distElevArray, $flatGradientTreshold, $steepGradientTr
 }
 
 function filterSegments($segments) {
-	$thresholdGradient = 7.5;
-	$minLength = 200;
+	$thresholdGradient = Config::$maxSegmentGradient;
+	$minLength = Config::$minSegmentLength;
 	// for ($i = 1; $i < count($segments); $i++) {
 		
 	// 	$length = $segments[$i][0] - $segments[$i - 1][0];
@@ -203,9 +202,9 @@ function getFietsIndex($distance, $relElevation, $altitudeAtTop) {
 }
 
 function computeClimbs($segments) {
-	$gradientClimbThreshold = 2;
-	$minClimbLength = 350;
-	$maxBetweenDown = 300;
+	$gradientClimbThreshold = Config::$minClimbGradient;
+	$minClimbLength = Config::$minClimbLength;
+	$maxBetweenDown = Config::$maxDistDownBetween;
 	$startDist = 0;
     $startElev = 0;
     $betweenClimbDownDist = 0;

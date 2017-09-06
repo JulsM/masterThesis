@@ -1,8 +1,9 @@
 <?php
-require_once '../StravaApiClient.php';
-require_once 'activityProcessing.php';
-require_once 'App.php';
-require_once 'vo2max.php';
+include_once '../StravaApiClient.php';
+include_once 'activityProcessing.php';
+include_once 'App.php';
+include_once 'vo2max.php';
+include_once 'Configuration.php';
 // session_start();
 
 if (isset($_POST['token']) && isset($_POST['id'])) {
@@ -55,8 +56,9 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     </head>
     <body>
     <div style="width: 80%; height: 80%; margin: 5% auto">
-    <p>Segment computation:</p>
+    
     <?php
+    echo '<p>Segment computation for activity: "'.$activity['name'].'"</p>';
 
     ### get google elevation data
     $googleElevation = getGoogleElevation($latlongArray);
@@ -77,7 +79,7 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     ###
 
     ### apply RDP algo
-    $rdpResult = applyRDP($elevationDistanceArray, 2.5);
+    $rdpResult = applyRDP($elevationDistanceArray, Config::$epsilonRPD);
     ###
 
     // echo 'rdp data, first: distance '.$rdpResult[0][0].' elevation '.$rdpResult[0][1].'<br>';
@@ -86,7 +88,7 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
 
     ### compute extreme points
     // computeExtrema($elevationArray, $distanceArray);
-    $segments = computeSegments($rdpResult, 1.8, 4.5);
+    $segments = computeSegments($rdpResult, Config::$lowGradientThreshold, Config::$highGradientThreshold);
     writeCsv($segments, $athleteName.'/segments');
     ###
 
@@ -100,18 +102,18 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
 
     
     ### recompute segments
-    $recompSegments = computeSegments($filteredSegments, 1, 4);
+    $recompSegments = computeSegments($filteredSegments, Config::$lowGradientThresholdRecomp, Config::$highGradientThresholdRecomp);
     writeCsv($recompSegments, $athleteName.'/recomputedSegments');
     ###
 
-    // echo 'gradients: ';
-    // for ($i = 1; $i < count($recompSegments); $i++) {
+    echo 'gradients: ';
+    for ($i = 1; $i < count($recompSegments); $i++) {
         
-    // $length = $recompSegments[$i][0] - $recompSegments[$i - 1][0];
-    // $gradient = getGradient($length, $recompSegments[$i][1] - $recompSegments[$i - 1][1]);
-    // echo $recompSegments[$i][0] . ' '.$gradient.', ';
+    $length = $recompSegments[$i][0] - $recompSegments[$i - 1][0];
+    $gradient = getGradient($length, $recompSegments[$i][1] - $recompSegments[$i - 1][1]);
+    echo $recompSegments[$i][0] . ' '.$gradient.', ';
         
-    // }
+    }
 
     ### get elevation gain
     // $elevArray   = array_column($recompSegments, 1);

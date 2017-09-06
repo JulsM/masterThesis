@@ -1,7 +1,9 @@
 <?php
-require_once '../database.php';
-require_once '../StravaApiClient.php';
-require_once 'App.php';
+include_once '../database.php';
+include_once '../StravaApiClient.php';
+include_once 'App.php';
+include_once 'Configuration.php';
+
 // session_start();
 if (isset($_POST['id'])) {
     $db     = Db::getInstance();
@@ -12,7 +14,7 @@ if (isset($_POST['id'])) {
         // $_SESSION['token'] = $token;
         $app->createStravaApi($token);
         $api = $app->getApi();
-        $activityArray = $api->getActivties(15);
+        $activityArray = $api->getActivties(Config::$numOfActivities);
     }
 }
 
