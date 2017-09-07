@@ -152,6 +152,12 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     $climbs = computeClimbs($recompSegments);
     writeClimbs($climbs, $athleteName.'/climbs');
     echo 'number of climbs: '.count($climbs).'<br>';
+    $percentageHilly = getPercentageHilly($recompSegments, $activity['distance']);
+    echo 'percentage hilly: '.$percentageHilly.'<br>';
+
+    // climb score
+    $score = calculateClimbScore($climbs, $activity['distance'], 1.0 - $percentageHilly);
+    echo 'climb score: '.$score.'<br>';
     ###
 
     ?>

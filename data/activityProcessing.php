@@ -201,6 +201,19 @@ function getFietsIndex($distance, $relElevation, $altitudeAtTop) {
         return $index + $altitudeBonus;
 }
 
+function getPercentageHilly($segments, $totalDistance) {
+	$hilly = 0;
+    for ($i = 1; $i < count($segments); $i++) {
+        $length = $segments[$i][0] - $segments[$i - 1][0];
+        $gradient = getGradient($length, $segments[$i][1] - $segments[$i - 1][1]);
+        if($gradient > Config::$hillySegmentThreshold || $gradient < -Config::$hillySegmentThreshold) {
+        	$hilly += $length;
+        }
+
+    }
+    return $hilly / $totalDistance;
+}
+
 function computeClimbs($segments) {
 	$gradientClimbThreshold = Config::$minClimbGradient;
 	$minClimbLength = Config::$minClimbLength;
@@ -212,11 +225,12 @@ function computeClimbs($segments) {
     $climbs = [];
     $tempClimb = [];
     $tempEnd = [];
+    $gradient = 0;
     for ($i = 1; $i < count($segments); $i++) {
         $length = $segments[$i][0] - $segments[$i - 1][0];
         $gradient = getGradient($length, $segments[$i][1] - $segments[$i - 1][1]);
         
-        if($gradient > $gradientClimbThreshold && $startDist == 0) { // start climb
+        if($gradient > $gradientClimbThreshold && !empty($tempClimb)) { // start climb
         	$startDist = $segments[$i-1][0];
         	$startElev = $segments[$i-1][1];
             echo 'climb start: '.$startDist.' elev:'.$startElev.' ';
@@ -230,39 +244,57 @@ function computeClimbs($segments) {
         	$betweenClimbDownDist = 0;
         	$tempDownClimb = [];
 
-    	} else if($gradient <= $gradientClimbThreshold && $startDist > 0) { // end climb
-    		// if(empty($tempEnd)) {
-    		// 	$tempEnd = array($segments[$i-1][0], $segments[$i-1][1]);
-    		// }
+    	} else if($gradient <= $gradientClimbThreshold && !empty($tempClimb)) { // end climb
     		$tempDownClimb[] = array($segments[$i-1][0], $segments[$i-1][1]);
     		$betweenClimbDownDist += $length;
         }
         // if inbetween downhill is to long, end climb
-        if($betweenClimbDownDist > $maxBetweenDown && $startDist > 0 && !empty($tempDownClimb)) { 
-        	
-        	$tempClimb[] = $tempDownClimb[0];
-        	// print_r($tempClimb);
-        	$climbs[] = $tempClimb;
-        	$tempClimb = [];
-        	$fiets = getFietsIndex($tempDownClimb[0][0] - $startDist, $tempDownClimb[0][1] - $startElev, $tempDownClimb[0][1]);
-            echo 'climb end: '.$tempDownClimb[0][0].' elev:'.$tempDownClimb[0][1].' fiets: '.$fiets.'<br>';
-            $startDist = 0;
+        if($betweenClimbDownDist > $maxBetweenDown && !empty($tempClimb) && !empty($tempDownClimb)) { 
+
+        	if($tempDownClimb[0][0] - $startDist >= $minClimbLength) {
+	        	$tempClimb[] = $tempDownClimb[0];
+	        	$climbs[] = $tempClimb;
+	        	
+	        	$fiets = getFietsIndex($tempDownClimb[0][0] - $startDist, $tempDownClimb[0][1] - $startElev, $tempDownClimb[0][1]);
+	            echo 'climb end: '.$tempDownClimb[0][0].' elev:'.$tempDownClimb[0][1].' fiets: '.$fiets.'<br>';
+	            
+	        }
+	        $tempClimb = [];
+	        $startDist = 0;
             $startElev = 0;
             $tempDownClimb = [];
             $betweenClimbDownDist = 0;
         }
              
     }
-    if($startDist > 0) {
-    	if(!empty($tempDownClimb[0])) {
-    		$tempClimb = array_merge($tempClimb, $tempDownClimb[0]);
-    	}
-    	$tempClimb[] = array($segments[$i-1][0], $segments[$i-1][1]);
-        $climbs[] = $tempClimb;
-    	$fiets = getFietsIndex($segments[$i-1][0] - $startDist, $segments[$i-1][1] - $startElev, $segments[$i-1][1]);
-        echo 'climb end: '.$segments[$i-1][0].' elev:'.$segments[$i-1][1].' fiets: '.$fiets.'<br>';
+    if(!empty($tempClimb)) {
+    	if($segments[$i-1][0] - $startDist >= $minClimbLength || $tempDownClimb[0][0] - $startDist >= $minClimbLength) {
+    		if(!empty($tempDownClimb[0])) {
+	    		$tempClimb[] = $tempDownClimb[0];
+	    	}
+	    	// push last one if it belongs to climb
+	    	if($gradient > $gradientClimbThreshold) {
+	    		$tempClimb[] = array($segments[$i-1][0], $segments[$i-1][1]);
+	    	}
+
+	        $climbs[] = $tempClimb;
+	    	$fiets = getFietsIndex($segments[$i-1][0] - $startDist, $segments[$i-1][1] - $startElev, $segments[$i-1][1]);
+	        // echo 'climb end: '.$segments[$i-1][0].' elev:'.$segments[$i-1][1].' fiets: '.$fiets.'<br>';
+	    }
     }
     return $climbs;
+}
+
+function calculateClimbScore($climbs, $totalDistance, $percentageFlat) {
+	$fietsSum = 0;
+	foreach ($climbs as $climb) {
+		$endIndex = count($climb) - 1;
+		$fietsSum += getFietsIndex($climb[$endIndex][0] - $climb[0][0], $climb[$endIndex][1] - $climb[0][1], $climb[$endIndex][1]);
+	}
+	$singleScores = $fietsSum / max(1.0, sqrt($totalDistance / 20000));
+	$compensateFlats = min(1.0, max(0.0, 1.0 - $percentageFlat * $percentageFlat));
+	$score = min(10.0, max(0.0, 2.0 * log(0.5 + (1.0 + $singleScores) * $compensateFlats, 2.0)));
+	return $score;
 }
 
 
