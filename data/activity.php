@@ -11,11 +11,12 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     $app->createStravaApi($_POST['token']);
     $api = $app->getApi();
     $activity = $api->getActivty($actitityId);
-    $streamLatLong  = $api->getStream($actitityId, "latlng");
-    $latlongArray   = $streamLatLong[0]['data'];
-    $distanceArray  = $streamLatLong[1]['data'];
-    $streamElev     = $api->getStream($actitityId, "altitude");
-    $stravaElevation = $streamElev[1]['data'];
+    $stream = $api->getStream($actitityId, "distance,altitude,latlng,time");
+    $latlongArray   = $stream[0]['data'];
+    $timeArray   = $stream[1]['data'];
+    $distanceArray  = $stream[2]['data'];
+    $stravaElevation = $stream[3]['data'];
+    
     $athleteName = $_POST['name'];
     if(!is_dir("output/".$athleteName)) {
         mkdir("output/".$athleteName);
@@ -106,14 +107,14 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     writeCsv($recompSegments, $athleteName.'/recomputedSegments');
     ###
 
-    echo 'gradients: ';
-    for ($i = 1; $i < count($recompSegments); $i++) {
+    // echo 'gradients: ';
+    // for ($i = 1; $i < count($recompSegments); $i++) {
         
-    $length = $recompSegments[$i][0] - $recompSegments[$i - 1][0];
-    $gradient = getGradient($length, $recompSegments[$i][1] - $recompSegments[$i - 1][1]);
-    echo $recompSegments[$i][0] . ' '.$gradient.', ';
+    // $length = $recompSegments[$i][0] - $recompSegments[$i - 1][0];
+    // $gradient = getGradient($length, $recompSegments[$i][1] - $recompSegments[$i - 1][1]);
+    // echo $recompSegments[$i][0] . ' '.$gradient.', ';
         
-    }
+    // }
 
     ### get elevation gain
     // $elevArray   = array_column($recompSegments, 1);
