@@ -12,14 +12,12 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     $api = $app->getApi();
     $activity = $api->getActivty($actitityId);
     $stream = $api->getStream($actitityId, "distance,altitude,latlng,time");
-    $latlongArray   = $stream[0]['data'];
-    $timeArray   = $stream[1]['data'];
-    $distanceArray  = $stream[2]['data'];
-    $stravaElevation = $stream[3]['data'];
     
     $athleteName = $_POST['name'];
+    // chmod("output/".$athleteName, 0777);
+    
     if(!is_dir("output/".$athleteName)) {
-        mkdir("output/".$athleteName);
+        mkdir("output/".$athleteName, 0777);
     }
 
     ## test route
@@ -61,82 +59,69 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     <?php
     echo '<p>Segment computation for activity: "'.$activity['name'].'"</p>';
 
-    ### get google elevation data
-    $googleElevation = getGoogleElevation($latlongArray);
+    $dataPoints = generateDataPoints($stream);
 
-    echo 'google data, first: distance '.$distanceArray[0].' elevation '.$googleElevation[0]->elevation.'<br>';
-    echo 'google data, last: distance '.$distanceArray[count($distanceArray)-1].' elevation '.$googleElevation[count($googleElevation)-1]->elevation.'<br>';
+    echo 'First DataPoint: ';
+    $dataPoints[0]->toString();
+    echo 'Last DataPoint: ';
+    $dataPoints[count($dataPoints)-1]->toString();
 
-    ### clean google elevation data
-    $elevationDistanceArray = cleanGoogleElevation($googleElevation, $distanceArray);
+    ### clean data points
+    $dataPoints = cleanDataPoints($dataPoints);
     ###
-
-    // echo 'clean data, first: distance '.$elevationDistanceArray[1][0].' elevation '.$elevationDistanceArray[0][0].'<br>';
-    // echo 'clean data, last: distance '.$elevationDistanceArray[1][count($elevationDistanceArray[0])-1].' elevation '.$elevationDistanceArray[0][count($elevationDistanceArray[0])-1].'<br>';
-
-
-    ### write data in CSV and GPX files
-    writeControlData($googleElevation, $stravaElevation, $distanceArray, $elevationDistanceArray, $athleteName);
+    
+    ### write data in CSV 
+    writeControlData($dataPoints, $athleteName, 'original');
     ###
 
     ### apply RDP algo
-    $rdpResult = applyRDP($elevationDistanceArray, Config::$epsilonRPD);
+    $dataPoints = RDP::RamerDouglasPeucker2d($dataPoints, Config::$epsilonRPD);
+    echo 'apply RDP: '.count($dataPoints).'<br>';
     ###
 
-    // echo 'rdp data, first: distance '.$rdpResult[0][0].' elevation '.$rdpResult[0][1].'<br>';
-    // echo 'rdp data, last: distance '.$rdpResult[count($rdpResult)-1][0].' elevation '.$rdpResult[count($rdpResult)-1][1].'<br>';
-
-
-    ### compute extreme points
-    // computeExtrema($elevationArray, $distanceArray);
-    $segments = computeSegments($rdpResult, Config::$lowGradientThreshold, Config::$highGradientThreshold);
-    writeCsv($segments, $athleteName.'/segments');
+    ### write data in CSV 
+    writeControlData($dataPoints, $athleteName, 'rdp');
     ###
 
-    // echo 'segment data, first: distance '.$segments[0][0].' elevation '.$segments[0][1].'<br>';
-    // echo 'segment data, last: distance '.$segments[count($segments)-1][0].' elevation '.$segments[count($segments)-1][1].'<br>';
+
+    ### compute segments
+    $segments = computeSegments($dataPoints, Config::$lowGradientThreshold, Config::$highGradientThreshold);
+    echo 'Compute segments: '.count($segments).'<br>';
+    writeControlData($segments, $athleteName, 'segments');
+    ###
+
+    
 
     ### filter segments
-    $filteredSegments = filterSegments($segments);
-    writeCsv($filteredSegments, $athleteName.'/filteredSegments');
-    
+    $segments = filterSegments($segments);
+    writeControlData($segments, $athleteName, 'filtered');
+    echo 'Filter segments: '.count($segments).'<br>';    
 
     
     ### recompute segments
-    $recompSegments = computeSegments($filteredSegments, Config::$lowGradientThresholdRecomp, Config::$highGradientThresholdRecomp);
-    writeCsv($recompSegments, $athleteName.'/recomputedSegments');
+    $segments = recomputeSegments($segments, Config::$lowGradientThresholdRecomp, Config::$highGradientThresholdRecomp);
+    writeControlData($segments, $athleteName, 'recompute');
+    echo 'Recompute segments: '.count($segments).'<br>';
     ###
 
-    // echo 'gradients: ';
-    // for ($i = 1; $i < count($recompSegments); $i++) {
-        
-    // $length = $recompSegments[$i][0] - $recompSegments[$i - 1][0];
-    // $gradient = getGradient($length, $recompSegments[$i][1] - $recompSegments[$i - 1][1]);
-    // echo $recompSegments[$i][0] . ' '.$gradient.', ';
-        
-    // }
 
-    ### get elevation gain
-    // $elevArray   = array_column($recompSegments, 1);
-    // $elevationGain = computeElevationGain($elevArray);
-    // echo 'elevation gain: ' . $elevationGain . '<br>';
-    ###
-
-    echo 'segment data, first: distance '.$recompSegments[0][0].' elevation '.$recompSegments[0][1].'<br>';
-    echo 'segment data, last: distance '.$recompSegments[count($recompSegments)-1][0].' elevation '.$recompSegments[count($recompSegments)-1][1].'<br><br>';
+    echo 'First segment: ';
+    $segments[0]->toString();
+    echo 'Last segment: ';
+    $segments[count($segments)-1]->toString();
+   
 
 
-    writeGPX($recompSegments, $athleteName.'/segmentsGPX', $distanceArray, $latlongArray);
+    // writeGPX($recompSegments, $athleteName.'/segmentsGPX', $distanceArray, $latlongArray);
 
     ### write output string
-    writeOutput($recompSegments, $athleteName.'/outputString');
+    writeOutput($segments, $athleteName.'/outputString');
     ###
 
     echo '<br><br>';
 
     ### elevation gain
-    $elevationArray   = array_column($rdpResult, 1);
-    $elevationGain = calculateElevationGain($elevationArray);
+    $elevationGain = calculateElevationGain($segments);
     echo 'strava elevation gain: '.$activity['total_elevation_gain'].'<br>';
     echo 'google elevation+ : ' . $elevationGain[0] . ' , elevation- :' . $elevationGain[1].'<br>';
     ###
@@ -149,17 +134,26 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     ### 
 
     ### climbs
-    // print climbs
-    $climbs = computeClimbs($recompSegments);
-    writeClimbs($climbs, $athleteName.'/climbs');
-    echo 'number of climbs: '.count($climbs).'<br>';
-    $percentageHilly = getPercentageHilly($recompSegments, $activity['distance']);
+    $percentageHilly = getPercentageHilly($segments, $activity['distance']);
     echo 'percentage hilly: '.$percentageHilly.'<br>';
-
+    // compute climbs
+    $climbs = computeClimbs($segments);
+    writeControlData($climbs, $athleteName, 'climbs');
+    echo 'Number climbs: '.count($climbs).'<br>';
+    
     // climb score
     $score = calculateClimbScore($climbs, $activity['distance'], 1.0 - $percentageHilly);
     echo 'climb score: '.$score.'<br>';
     ###
+
+    // vertical speed
+    echo 'Vertical speed (VAM):';
+    $i = 1;
+    foreach ($climbs as $climb) {
+        echo 'climb '.$i.': '.$climb->getVerticalSpeed().', ';
+        $i++;
+    }
+    echo '<br>';
 
     ?>
 

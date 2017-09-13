@@ -75,10 +75,10 @@ class RDP
         for ($i = 1; $i < ($totalPoints - 1); $i++)
         {
             $d = self::perpendicularDistance2d(
-                        $pointList[$i][0], $pointList[$i][1],
-                        $pointList[0][0], $pointList[0][1],
-                        $pointList[$totalPoints-1][0],
-                        $pointList[$totalPoints-1][1]);
+                        $pointList[$i]->distance, $pointList[$i]->altitude,
+                        $pointList[0]->distance, $pointList[0]->altitude,
+                        $pointList[$totalPoints-1]->distance,
+                        $pointList[$totalPoints-1]->altitude);
 
             if ($d > $dmax)
             {

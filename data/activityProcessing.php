@@ -1,8 +1,35 @@
 <?php
-include_once 'googleElevationClient.php';
-include_once 'RDP.php';
 include_once 'Configuration.php';
+
+function my_autoload($class_name) {
+    $file = 'classes/'.$class_name.'.php';
+    if(file_exists($file)) {
+      	include_once($file);
+    }
+}
+spl_autoload_register('my_autoload');
 ### processing elevation data ###
+
+function generateDataPoints($stream) {
+	$latlongArray   = $stream[0]['data'];
+    $timeArray   = $stream[1]['data'];
+    $distanceArray  = $stream[2]['data'];
+    $stravaElevation = $stream[3]['data'];
+    ### get google elevation data
+    $googleElevation = getGoogleElevation($latlongArray);
+
+    $dataPoints = [];
+    for($i = 0; $i < count($distanceArray); $i++) {
+    	$param = array('lat' => $latlongArray[$i][0],
+    				   'long' => $latlongArray[$i][1],
+    				   'dist' => $distanceArray[$i],
+    				   'alt' => $googleElevation[$i]->elevation,
+    				   'stravaAlt' => $stravaElevation[$i],
+    				   'time' => $timeArray[$i]);
+    	$dataPoints[] = new DataPoint($param);
+    }
+    return $dataPoints;
+}
 
 
 function getGoogleElevation($latlongArray) {
@@ -11,276 +38,288 @@ function getGoogleElevation($latlongArray) {
 	    $googleClient->addCoordinate($coord[0], $coord[1]);
 	}
 	$response = $googleClient->fetchJSON();
-	// echo count($response) . ' ' . count($latlongArray);
 	return $response;
 }
 
 // remove points which are too close to eachother
-function cleanGoogleElevation($elevArray, $distArray)
+function cleanDataPoints($dataPoints)
 {	
-    $elevResponse  = array();
-    $distResponse  = array();
+    $response  = [];
     $distThreshold = Config::$cleanMinDist;
     $sum           = 0;
-    // echo $distArray[0];
-    $lastDist = $distArray[0];
+    $lastDist = $dataPoints[0]->distance;
 
     // push first one
-    array_push($elevResponse, $elevArray[0]->elevation);
-    array_push($distResponse, $distArray[0]);
+    $response[] = $dataPoints[0];
 
-    for ($i = 1; $i < count($distArray); $i++) {
-        $dist = $distArray[$i] - $lastDist;
+    for ($i = 1; $i < count($dataPoints); $i++) {
+        $dist = $dataPoints[$i]->distance - $lastDist;
         $sum += $dist;
         // echo $sum . ' '.$dist . ', ';
         if ($sum >= $distThreshold) {
-            array_push($elevResponse, $elevArray[$i]->elevation);
-            array_push($distResponse, $distArray[$i]);
+        	$response[] = $dataPoints[$i];
             $sum = 0;
         }
 
-        $lastDist = $distArray[$i];
+        $lastDist = $dataPoints[$i]->distance;
     }
     // push last one
-    array_push($elevResponse, $elevArray[count($elevArray) - 1]->elevation);
-    array_push($distResponse, $distArray[count($distArray) - 1]);
-    echo 'remove measure points that are closer than 5 m distance, count before: ' . count($distArray) . ' count after: ' . count($distResponse) . ' <br>';
-    return [$elevResponse, $distResponse];
+    $response[] = $dataPoints[count($dataPoints) - 1];
+    echo 'remove measure points that are closer than '.Config::$cleanMinDist.' m distance, count before: ' . count($dataPoints) . ' count after: ' . count($response) . ' <br>';
+    return $dataPoints;
 }
 
-function applyRDP($elevationDistanceArray, $delta) {
-	$rdpList   = array();
-	$i         = 0;
-	foreach ($elevationDistanceArray[0] as $elev) {
-	    $rdpList[] = array($elevationDistanceArray[1][$i], $elev);
-	    $i++;
-	}
-	$rdpResult = RDP::RamerDouglasPeucker2d($rdpList, $delta);
-	echo 'apply RDP algo. count: ' . count($rdpResult) . '<br>';
-	return $rdpResult;
-}
 
-function computeSegments($distElevArray, $flatGradientTreshold, $steepGradientTreshold) {
+function computeSegments($dataPoints, $flatGradientTreshold, $steepGradientTreshold) {
 
-    $elevArray = array_column($distElevArray, 1);
-    $distArray = array_column($distElevArray, 0);
 	$segments = [];
-	$prevElevPoint = $elevArray[0];
-	$prevDistPoint = $distArray[0];
+	$prevPoint = $dataPoints[0];
 	$currentState = 0;
 	$prevState = 0;
 
-	$prevSegmentElev = $elevArray[0];
-	$prevSegmentDist = $distArray[0];
-	// $segments[] = array($prevSegmentDist, $prevSegmentElev);
+	$startSegment = $dataPoints[0];
 
-
-	for ($i = 1; $i < count($elevArray); $i++) {
-		$currentElevPoint = $elevArray[$i];
-		$currentDistPoint = $distArray[$i];
-	    $relDist = $currentDistPoint - $prevDistPoint;
+	for ($i = 1; $i < count($dataPoints); $i++) {
+		$currentPoint = $dataPoints[$i];
+	    // compute gradient between two data points
+	    $relDist = $currentPoint->distance - $prevPoint->distance;
+	    $height = $currentPoint->altitude - $prevPoint->altitude;
 	    $gradient = 0;
-
-	    // compute gradient between two GPS points
-	    if ($relDist > 0) {
-	        $gradient = getGradient($relDist, $currentElevPoint - $prevElevPoint);
+		if ($relDist > 0) {
+	        $gradient = round($height / $relDist * 100, 2);
 	    }
+        
 
-	    // check for abnormal gradients
-	    // if ($gradient < 20 || $gradient > -20) {
+        if ($gradient >= $steepGradientTreshold) {
+            $currentState = 'up2';
+        } elseif ($gradient >= $flatGradientTreshold && $gradient < $steepGradientTreshold) {
+            $currentState = 'up';
+        } elseif ($gradient < $flatGradientTreshold && $gradient > -$flatGradientTreshold) {
+            $currentState = 'level';
+        } elseif ($gradient <= -$flatGradientTreshold && $gradient > -$steepGradientTreshold) {
+            $currentState = 'down';
+        } elseif ($gradient <= -$steepGradientTreshold) {
+            $currentState = 'down2';
+        }
+        // if state changed add point to segments
+        if ($currentState != $prevState && $prevState != 'null') {
+        	$s = new Segment($startSegment, $prevPoint);
+        	$s->update();
+        	$segments[] = $s;
+            $startSegment = $prevPoint;
+            $prevState = $currentState;
+            
+        } else {
+            $prevState = $currentState;
+        }
 
-	        if ($gradient >= $steepGradientTreshold) {
-	            $currentState = 'up2';
-	        } elseif ($gradient >= $flatGradientTreshold && $gradient < $steepGradientTreshold) {
-	            $currentState = 'up';
-	        } elseif ($gradient < $flatGradientTreshold && $gradient > -$flatGradientTreshold) {
-	            $currentState = 'level';
-	        } elseif ($gradient <= -$flatGradientTreshold && $gradient > -$steepGradientTreshold) {
-	            $currentState = 'down';
-	        } elseif ($gradient <= -$steepGradientTreshold) {
-	            $currentState = 'down2';
-	        }
-	        // if state changed add point to segments
-	        if ($currentState != $prevState && $prevState != 'null') {
-	        	$segments[] = array($prevSegmentDist, $prevSegmentElev);
-                $prevSegmentElev = $prevElevPoint;
-                $prevSegmentDist = $prevDistPoint;
-                $prevState = $currentState;
-	            
-	        } else {
-	            $prevState = $currentState;
-	        }
-	    // }
-	    $prevElevPoint = $currentElevPoint;
-	    $prevDistPoint = $currentDistPoint;
+	    $prevPoint = $currentPoint;
 
 	}
 	// add last 
-	$segments[] = array($prevSegmentDist, $prevSegmentElev);
-	$segments[] = array($prevDistPoint, $prevElevPoint);
-	echo 'resulted segment points: ' . count($segments) . '<br>';
+	$s = new Segment($startSegment, $prevPoint);
+	$s->update();
+	$segments[] = $s;
 	
 	return $segments;
+}
+
+function recomputeSegments($segments, $flatGradientTreshold, $steepGradientTreshold) {
+
+	$response = [];
+	$currentState = 0;
+	$prevState = 0;
+
+	$startSegment = $segments[0]->start;
+
+	for ($i = 0; $i < count($segments); $i++) {
+		$currentSegment = $segments[$i];
+	    // compute gradient between two data points
+        $gradient = $currentSegment->gradient;
+
+
+        if ($gradient >= $steepGradientTreshold) {
+            $currentState = 'up2';
+        } elseif ($gradient >= $flatGradientTreshold && $gradient < $steepGradientTreshold) {
+            $currentState = 'up';
+        } elseif ($gradient < $flatGradientTreshold && $gradient > -$flatGradientTreshold) {
+            $currentState = 'level';
+        } elseif ($gradient <= -$flatGradientTreshold && $gradient > -$steepGradientTreshold) {
+            $currentState = 'down';
+        } elseif ($gradient <= -$steepGradientTreshold) {
+            $currentState = 'down2';
+        }
+        // if state changed add new segment
+        if ($currentState != $prevState && $prevState != 'null') {
+        	$s = new Segment($startSegment, $currentSegment->start);
+        	$s->update();
+        	$response[] = $s;
+            $startSegment = $currentSegment->start;
+            $prevState = $currentState;
+            
+        } else {
+            $prevState = $currentState;
+        }
+
+	}
+	// add last 
+	$s = new Segment($startSegment, $segments[(count($segments)-1)]->end);
+	$s->update();
+	$response[] = $s;
+
+	// foreach ($segments as $s) {
+	// 	echo $s->length.' '.$s->gradient.', ';
+	// }
+	
+	
+	return $response;
 }
 
 function filterSegments($segments) {
 	$thresholdGradient = Config::$maxSegmentGradient;
 	$minLength = Config::$minSegmentLength;
-	// for ($i = 1; $i < count($segments); $i++) {
-		
-	// 	$length = $segments[$i][0] - $segments[$i - 1][0];
-	// 	$gradient = 0;
-	// 	if ($length > 0) {
-	//         $gradient = round(($segments[$i][1] - $segments[$i - 1][1]) / $length * 100, 4);
-	//     }
-	// 	echo $length . ' '.$gradient.', ';
-		
-	// }
+	$response = [];
 
 	## filter too steep gradients
-	for ($i = 1; $i < count($segments); $i++) {
+	for ($i = 0; $i < count($segments); $i++) {
 		
-		$length = $segments[$i][0] - $segments[$i - 1][0];
-		$gradient = 0;
-		if ($length > 0) {
-	        $gradient = getGradient($length, $segments[$i][1] - $segments[$i - 1][1]);
-	    }
-		// echo $length . ' '.$gradient.', ';
-		if(($gradient > $thresholdGradient || $gradient < -$thresholdGradient) && $length < $minLength) {
-			array_splice($segments, $i, 1);
+		$gradient = $segments[$i]->gradient;
+		// echo $segments[$i]->length . ' '.$gradient.', ';
+		if(($gradient <= $thresholdGradient || $gradient >= -$thresholdGradient) && $segments[$i]->length >= $minLength) {
+			$response[] = $segments[$i];
+		} else {
+			if($i < count($segments) - 2) {
+				$s = new Segment($segments[$i]->start, $segments[$i + 1]->end);
+				$s->update();
+				$response[] = $s;
+				$i++;
+			} else {
+				$response[] = $segments[$i];
+			}
 		}
 	}
 
-	## filter too short segments
-	for ($i = 1; $i < count($segments); $i++) {
-		
-		$length = $segments[$i][0] - $segments[$i - 1][0];
-		
-		if($length < $minLength) {
-			array_splice($segments, $i, 1);
-		}
-	}
-	echo 'filtered segment points: ' . count($segments) . '<br>';
 	
-	return $segments;
+	$segments = $response;
+	$response = [];
+	## filter too short segments
+	for ($i = 0; $i < count($segments); $i++) {
+		if($segments[$i]->length >= $minLength) {
+			$response[] = $segments[$i];
+		} else {
+			if($i < count($segments) - 2) {
+				$s = new Segment($segments[$i]->start, $segments[$i + 1]->end);
+				$s->update();
+				$response[] = $s;
+				$i++;
+			} else {
+				$response[] = $segments[$i];
+			}
+		}
+	}
+	// foreach ($segments as $s) {
+	// 	echo $s->length.' '.$s->gradient.', ';
+	// }
+	
+	return $response;
 }
 
 
-function getGradient($length, $height) {
-	$gradient = 0;
-	if ($length > 0) {
-        $gradient = round($height / $length * 100, 2);
-    }
-    return $gradient;
-}
 
-
-function calculateElevationGain($elevArray) {
+function calculateElevationGain($segments) {
 	$up = 0;
 	$down = 0;
-	$lastAbsElev = $elevArray[0];
-	foreach ($elevArray as $absElev) {
-		$relElev = $absElev - $lastAbsElev;
-
+	foreach ($segments as $segment) {
+		$relElev = $segment->elevation;
 		if($relElev > 0) {
 			$up += $relElev;
 		} else if($relElev < 0) {
 			$down += $relElev;
 		}
-		$lastAbsElev = $absElev;
 	}
 	return [$up, $down];
 }
 
-function getFietsIndex($distance, $relElevation, $altitudeAtTop) {
-        if ($relElevation < 0) {
-            return 0.0;
-        }
-        $index = $relElevation * $relElevation / ($distance * 10);
-        $altitudeBonus = max(0, ($altitudeAtTop - 1000) / 1000);
-        return $index + $altitudeBonus;
-}
+
 
 function getPercentageHilly($segments, $totalDistance) {
 	$hilly = 0;
-    for ($i = 1; $i < count($segments); $i++) {
-        $length = $segments[$i][0] - $segments[$i - 1][0];
-        $gradient = getGradient($length, $segments[$i][1] - $segments[$i - 1][1]);
+    for ($i = 0; $i < count($segments); $i++) {
+        $gradient = $segments[$i]->gradient;
         if($gradient > Config::$hillySegmentThreshold || $gradient < -Config::$hillySegmentThreshold) {
-        	$hilly += $length;
+        	$hilly += $segments[$i]->length;
         }
 
     }
-    return $hilly / $totalDistance;
+    return round($hilly / $totalDistance, 2);
 }
 
 function computeClimbs($segments) {
 	$gradientClimbThreshold = Config::$minClimbGradient;
 	$minClimbLength = Config::$minClimbLength;
 	$maxBetweenDown = Config::$maxDistDownBetween;
-	$startDist = 0;
-    $startElev = 0;
-    $betweenClimbDownDist = 0;
+
+	$tempClimb = [];
+	$tempClimbDist = 0;
+    $tempDownDist = 0;
     $tempDownClimb = [];
+    
     $climbs = [];
-    $tempClimb = [];
-    $tempEnd = [];
-    $gradient = 0;
-    for ($i = 1; $i < count($segments); $i++) {
-        $length = $segments[$i][0] - $segments[$i - 1][0];
-        $gradient = getGradient($length, $segments[$i][1] - $segments[$i - 1][1]);
+    for ($i = 0; $i < count($segments); $i++) {
+        $gradient = $segments[$i]->gradient;
         
         if($gradient > $gradientClimbThreshold && empty($tempClimb)) { // start climb
-        	$startDist = $segments[$i-1][0];
-        	$startElev = $segments[$i-1][1];
-            // echo 'climb start: '.$startDist.' elev:'.$startElev.' ';
-            $tempClimb[] = array($startDist, $startElev);
-
+            // echo 'climb start: '.$segments[$i]->start->distance.' elev:'.$segments[$i]->start->altitude.' ';
+            $tempClimb[] = $segments[$i];
+            $tempClimbDist = $segments[$i]->length;
         } else if($gradient > $gradientClimbThreshold) { // continue climb uphill
         	if(!empty($tempDownClimb)) {
         		$tempClimb = array_merge($tempClimb, $tempDownClimb);
+        		$tempDownDist = 0;
+        		$tempDownClimb = [];
         	}
-        	$tempClimb[] = array($segments[$i-1][0], $segments[$i-1][1]);
-        	$betweenClimbDownDist = 0;
-        	$tempDownClimb = [];
+        	$tempClimb[] = $segments[$i];
+        	$tempClimbDist += $segments[$i]->length;
+        	
 
     	} else if($gradient <= $gradientClimbThreshold && !empty($tempClimb)) { // end climb
-    		$tempDownClimb[] = array($segments[$i-1][0], $segments[$i-1][1]);
-    		$betweenClimbDownDist += $length;
+    		if($tempClimbDist >= $minClimbLength) { // check if climb length before going under threshold
+	    		$tempDownClimb[] = $segments[$i];
+	    		$tempDownDist += $segments[$i]->length;
+	    	} else {
+	    		$tempClimb = [];
+	            $tempDownClimb = [];
+	            $tempDownDist = 0;
+	            $tempClimbDist = 0;
+	    	}
         }
         // if inbetween downhill is to long, end climb
-        if($betweenClimbDownDist > $maxBetweenDown && !empty($tempClimb) && !empty($tempDownClimb)) { 
+        if($tempDownDist > $maxBetweenDown && !empty($tempClimb)) { 
 
-        	if($tempDownClimb[0][0] - $startDist >= $minClimbLength) {
-	        	$tempClimb[] = $tempDownClimb[0];
-	        	$climbs[] = $tempClimb;
+        	if($tempClimbDist >= $minClimbLength) {
+        		$c = new Climb($tempClimb);
+        		$c->update();
+	        	$climbs[] = $c;
 	        	
-	        	$fiets = getFietsIndex($tempDownClimb[0][0] - $startDist, $tempDownClimb[0][1] - $startElev, $tempDownClimb[0][1]);
-	            // echo 'climb end: '.$tempDownClimb[0][0].' elev:'.$tempDownClimb[0][1].' fiets: '.$fiets.'<br>';
+	        	$fiets = $c->getFietsIndex();
+	            // echo 'climb end: '.$c->end->distance.' elev:'.$c->end->altitude.' fiets: '.$fiets.'<br>';
 	            
 	        }
 	        $tempClimb = [];
-	        $startDist = 0;
-            $startElev = 0;
             $tempDownClimb = [];
-            $betweenClimbDownDist = 0;
+            $tempDownDist = 0;
+            $tempClimbDist = 0;
         }
              
     }
-    if(!empty($tempClimb)) {
-    	if($segments[$i-1][0] - $startDist >= $minClimbLength || $tempDownClimb[0][0] - $startDist >= $minClimbLength) {
-    		if(!empty($tempDownClimb[0])) {
-	    		$tempClimb[] = $tempDownClimb[0];
-	    	}
-	    	// push last one if it belongs to climb
-	    	if($gradient > $gradientClimbThreshold) {
-	    		$tempClimb[] = array($segments[$i-1][0], $segments[$i-1][1]);
-	    	}
-
-	        $climbs[] = $tempClimb;
-	    	$fiets = getFietsIndex($segments[$i-1][0] - $startDist, $segments[$i-1][1] - $startElev, $segments[$i-1][1]);
-	        // echo 'climb end: '.$segments[$i-1][0].' elev:'.$segments[$i-1][1].' fiets: '.$fiets.'<br>';
-	    }
+    if(!empty($tempClimb) && $tempClimbDist >= $minClimbLength) {
+        $c = new Climb($tempClimb);
+		$c->update();
+    	$climbs[] = $c;
+    	
+    	$fiets = $c->getFietsIndex();
+        // echo 'climb end: '.$c->end->distance.' elev:'.$c->end->altitude.' fiets: '.$fiets.'<br>';
+	    
     }
     return $climbs;
 }
@@ -289,60 +328,88 @@ function calculateClimbScore($climbs, $totalDistance, $percentageFlat) {
 	$fietsSum = 0;
 	foreach ($climbs as $climb) {
 		$endIndex = count($climb) - 1;
-		$fietsSum += getFietsIndex($climb[$endIndex][0] - $climb[0][0], $climb[$endIndex][1] - $climb[0][1], $climb[$endIndex][1]);
+		$fietsSum += $climb->fietsIndex;
 	}
 	$singleScores = $fietsSum / max(1.0, sqrt($totalDistance / 20000));
 	$compensateFlats = min(1.0, max(0.0, 1.0 - $percentageFlat * $percentageFlat));
 	$score = min(10.0, max(0.0, 2.0 * log(0.5 + (1.0 + $singleScores) * $compensateFlats, 2.0)));
-	return $score;
+	return round($score, 2);
 }
 
-// m/h
-function calculateVerticalSpeed($climbs, $duration) {
-	$speeds = [];
-	foreach ($climbs as $climb) {
-		$speeds[] = ($climb[count($climb) - 1][1] - $climb[0][1]) / ($duration / 3600);
-	}
-	return $speeds;
-}
 
 
 
 
 ### write functions ###
 
-function writeControlData($googleElevation, $stravaElevation, $distanceArray, $elevationDistanceArray, $athleteName) {
-	$index        = 0;
-	$diffList     = array();
-	array_push($diffList, array('strava', 'google', 'distance'));
+function writeControlData($data, $athleteName, $type) {
+	if($type == 'original') {
+		$list = [];
+		array_push($list, array('strava', 'google', 'distance'));
 
-	foreach ($googleElevation as $obj) {
-	    array_push($diffList, array($stravaElevation[$index], $obj->elevation, $distanceArray[$index]));
-	    $index++;
-	}
+		foreach ($data as $point) {
+		    $list[] = array($point->stravaAlt, $point->altitude, $point->distance);
+		}
 
-	$originalList = array();
-	$i         = 0;
-	foreach ($elevationDistanceArray[0] as $elev) {
-	    array_push($originalList, array($elev, $elevationDistanceArray[1][$i]));
-	    $i++;
+		writeCsv($list, $athleteName.'/originalData');
+	} else if($type == 'rdp') {
+		$list = [];
+		foreach ($data as $point) {
+		    $list[] = array($point->distance, $point->altitude);
+		}
+
+		writeCsv($list, $athleteName.'/rdp');
+	} else if($type == 'segments') {
+		$list = [];
+		foreach ($data as $segment) {
+		    $list[] = array($segment->start->distance, $segment->start->altitude);
+		}
+		$list[] = array($data[count($data)-1]->end->distance, $segment->end->altitude);
+
+		writeCsv($list, $athleteName.'/segments');
+	} else if($type == 'filtered') {
+		$list = [];
+		foreach ($data as $segment) {
+		    $list[] = array($segment->start->distance, $segment->start->altitude);
+		}
+		$list[] = array($data[count($data)-1]->end->distance, $segment->end->altitude);
+
+		writeCsv($list, $athleteName.'/filteredSegments');
+	} else if($type == 'recompute') {
+		$list = [];
+		foreach ($data as $segment) {
+		    $list[] = array($segment->start->distance, $segment->start->altitude);
+		}
+		$list[] = array($data[count($data)-1]->end->distance, $segment->end->altitude);
+
+		writeCsv($list, $athleteName.'/recomputedSegments');
+	} else if($type == 'climbs') {
+		$list = [];
+		foreach ($data as $climb) {
+			$a = [];
+			foreach ($climb->segments as $segment) {
+		    	$a[] = $segment->start->distance;
+		    	$a[] = $segment->start->altitude;
+		    }
+		    $a[] = $climb->end->distance;
+		    $a[] = $climb->end->altitude;
+		    $list[] = $a;
+		}
+		
+
+		writeCsv($list, $athleteName.'/climbs');
 	}
-	writeCsv($originalList, $athleteName.'/originalData');
-	writeCsv($diffList, $athleteName.'/stravaGoogleDifference');
 }
 
-function writeGPX($segments, $name, $distanceArray, $latlongArray)
+function writeGPX($segments, $name)
 {
     $fp     = fopen('output/' . $name . '.gpx', 'w+');
     $header = '<?xml version="1.0" encoding="UTF-8"?>
     <gpx creator="Julian" version="1.0" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd" >';
     fwrite($fp, $header);
-    foreach ($segments as $point) {
-
-    	$index = array_search($point[0], $distanceArray);
-    	$latlong = $latlongArray[$index];
-        $string = '<wpt lat="' . $latlong[0] . '" lon="' . $latlong[1] . '">
-        <name>' . $point[1] .'</name>
+    foreach ($segments as $segment) {
+        $string = '<wpt lat="' . $segment->start->latitude . '" lon="' . $segment->start->longitude . '">
+        <name>' . $segment->start->altitude .'</name>
         </wpt>
         ';
         fwrite($fp, $string);
@@ -361,31 +428,15 @@ function writeCsv($list, $name)
     fclose($fp);
 }
 
-function writeClimbs($climbs, $name) {
-	$list = [];
-    foreach ($climbs as $climb) {
-        $points = [];
-        foreach ($climb as $point) {
-            $points[] = $point[0];
-            $points[] = $point[1];
-        }
-        $list[] = $points;
-        
-    }
-    // print_r($list);
-    writeCsv($list, $name);
-}
 
 
 function writeOutput($segments, $name)
 {
     $str = '';
-    $prevSegm = $segments[0];
-    for($i = 1; $i < count($segments); $i++) {
-    	$relDist = $segments[$i][0] - $prevSegm[0];
-    	$gradient = getGradient($relDist, $segments[$i][1] - $prevSegm[1]);
-        $str .= $prevSegm[0] . ',' . $relDist . ',' . $gradient . '|';
-        $prevSegm = $segments[$i];
+    // $prevSegm = $segments[0];
+    for($i = 0; $i < count($segments); $i++) {
+        $str .= $segments[$i]->start->distance . ',' . $segments[$i]->length . ',' . $segments[$i]->gradient . '|';
+        // $prevSegm = $segments[$i];
     }
     $str = substr($str, 0, -1);
     echo 'output string: ' . $str;
@@ -395,12 +446,4 @@ function writeOutput($segments, $name)
 
 }
 
-function writeRegressionCsv($list, $name)
-{
-    $fp = fopen('data/output/' . $name . '_data.csv', 'w+');
-    fputcsv($fp, array('time', 'distance', 'pace', 'elevation', 'vo2max'));
-    foreach ($list as $line) {
-        fputcsv($fp, $line);
-    }
-    fclose($fp);
-}
+

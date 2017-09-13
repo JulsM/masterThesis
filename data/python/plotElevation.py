@@ -5,7 +5,7 @@ from rdp import rdp
 
 
 def plotDifferenceElev():
-	data = np.genfromtxt('../output/stravaGoogleDifference.csv', delimiter=',', skip_header=1)
+	data = np.genfromtxt('../output/originalData.csv', delimiter=',', skip_header=1)
 
 	# print(data)
 	strava=data[:, :1]
@@ -27,11 +27,11 @@ def plotDifferenceElev():
 
 
 def plotCleanedupElev():
-	cleanData = np.genfromtxt('../output/originalData.csv', delimiter=',')
+	cleanData = np.genfromtxt('../output/originalData.csv', delimiter=',', skip_header=1)
+	rdpData = np.genfromtxt('../output/rdp.csv', delimiter=',')
 	segmentData = np.genfromtxt('../output/segments.csv', delimiter=',')
 	filteredSegmentData = np.genfromtxt('../output/filteredSegments.csv', delimiter=',')
 	recompSegmentData = np.genfromtxt('../output/recomputedSegments.csv', delimiter=',')
-	# climbs = np.genfromtxt('../output/climbs.csv', delimiter=',', missing_values=0.0)
 	climbs = []
 	climbs.append([])
 	climbs.append([])
@@ -48,10 +48,9 @@ def plotCleanedupElev():
 			
 
 	plt.subplot(3, 1, 1)
-	plt.plot(cleanData[:, 1:], cleanData[:, :1], 'g', label="cleaned")
+	plt.plot(cleanData[:, 2:], cleanData[:, 1:2], 'g', label="cleaned")
 	# plt.subplot(3, 1, 2)
-	result = rdp(cleanData, epsilon=2.5)
-	plt.plot(result[:, 1:], result[:, :1], 'r', label="rdp")
+	plt.plot(rdpData[:, :1], rdpData[:, 1:], 'r', label="rdp")
 	plt.legend(fontsize="small", loc="lower center")
 	plt.subplot(3, 1, 2)
 	plt.plot(segmentData[:, :1], segmentData[:, 1:], 'g', label="segment")
