@@ -12,6 +12,11 @@ class Climb extends Segment {
 		$this->segments = $segments;
 	}
 
+	public function update() {
+		parent::update();
+		$this->fietsIndex = $this->getFietsIndex();
+	}
+
 	function getFietsIndex() {
         if ($this->elevation <= 0) {
             return 0.0;

@@ -2,10 +2,11 @@
 class Config {
 
 	## API
-	static $numOfActivities = 15;
+	static $numOfActivities = 20;
 
 	## Clean Google data
 	static $cleanMinDist = 5; // meters
+	static $surfaceStepsDist = 400; // meters
 
 	## RDP
 	static $epsilonRPD = 2.5;
