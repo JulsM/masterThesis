@@ -1,13 +1,13 @@
 <?php 
 // include_once 'Configuration.php';
 // include_once 'vo2max.php';
-function classes_autoload($class_name) {
-    $file = 'classes/'.$class_name.'.php';
-    if(file_exists($file)) {
-      	include_once($file);
-    }
-}
-spl_autoload_register('classes_autoload');
+// function classes_autoload($class_name) {
+//     $file = 'classes/'.$class_name.'.php';
+//     if(file_exists($file)) {
+//       	include_once($file);
+//     }
+// }
+// spl_autoload_register('classes_autoload');
 class Activity {
 
 	public $id;
@@ -38,11 +38,11 @@ class Activity {
 
 	public $surface;
 
-	public $type;
+	public $type; //todo
 
-	public $temperature;
+	public $temperature; //todo
 
-	public $splitType;
+	public $splitType; //todo
 
 
 

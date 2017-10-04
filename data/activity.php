@@ -1,12 +1,7 @@
 <?php
 include_once '../StravaApiClient.php';
-include_once 'activityProcessing.php';
 include_once 'App.php';
-include_once 'classes/Vo2Max.php';
-include_once 'Configuration.php';
-include_once 'classes/OverpassApiClient.php';
-include_once 'classes/Activity.php';
-include_once 'classes/FileWriter.php';
+include_once 'Autoloader.php';
 // session_start();
 
 if (isset($_POST['token']) && isset($_POST['id'])) {
@@ -80,7 +75,6 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     echo 'percentage hilly: '.$activity->percentageHilly.'<br>';
     // compute climbs
     $activity->findClimbs();
-    
     echo 'Number climbs: '.count($activity->climbs).'<br>';
     
 

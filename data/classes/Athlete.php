@@ -1,5 +1,4 @@
 <?php 
-include_once 'Configuration.php';
 class Athlete {
 
 	public $id;
@@ -10,11 +9,11 @@ class Athlete {
 
 	public $activities;
 
-	public $fourWeekMileage;
+	public $fourWeekMileage; //todo
 
-	public $typeCategory;
+	public $typeCategory; //todo
 
-	public $racePace;
+	public $racePace; //todo
 
 	
 
