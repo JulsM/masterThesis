@@ -2,7 +2,7 @@
 include_once '../database.php';
 include_once '../StravaApiClient.php';
 include_once 'App.php';
-include_once 'Configuration.php';
+include_once 'Config.php';
 
 // session_start();
 if (isset($_POST['id'])) {

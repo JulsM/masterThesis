@@ -4,66 +4,86 @@ class FileWriter {
 	
 	private $path;
 
+	private $lock;
+
 	public function __construct($athleteName) {
 		$this->path = 'output/'.$athleteName.'/';
+		$this->lock = false;
 	}
 
 	public function writeControlData($data, $type) {
-		if($type == 'original') {
-			$list = [];
-			array_push($list, array('strava', 'google', 'distance'));
+		if(!$this->lock) {
+			if($type == 'original') {
+				$list = [];
+				array_push($list, array('strava', 'google', 'distance'));
 
-			foreach ($data as $point) {
-			    $list[] = array($point->stravaAlt, $point->altitude, $point->distance);
+				foreach ($data as $point) {
+				    $list[] = array($point->stravaAlt, $point->altitude, $point->distance);
+				}
+
+				$this->writeCsv($list, 'originalData');
+			} else if($type == 'rdp') {
+				echo 'Apply RDP: '.count($data).'<br>';
+				$list = [];
+				foreach ($data as $point) {
+				    $list[] = array($point->distance, $point->altitude);
+				}
+
+				$this->writeCsv($list, 'rdp');
+			} else if($type == 'segments') {
+				echo 'Compute segments: '.count($data).'<br>';
+				$list = [];
+				foreach ($data as $segment) {
+				    $list[] = array($segment->start->distance, $segment->start->altitude);
+				}
+				$list[] = array($data[count($data)-1]->end->distance, $segment->end->altitude);
+
+				$this->writeCsv($list, 'segments');
+			} else if($type == 'filtered') {
+				echo 'Filter segments: '.count($data).'<br>'; 
+				$list = [];
+				foreach ($data as $segment) {
+				    $list[] = array($segment->start->distance, $segment->start->altitude);
+				}
+				$list[] = array($data[count($data)-1]->end->distance, $segment->end->altitude);
+
+				$this->writeCsv($list, 'filteredSegments');
+			} else if($type == 'recompute') {
+				echo 'Recompute segments: '.count($data).'<br>';
+				$list = [];
+				foreach ($data as $segment) {
+				    $list[] = array($segment->start->distance, $segment->start->altitude);
+				}
+				$list[] = array($data[count($data)-1]->end->distance, $segment->end->altitude);
+
+				$this->writeCsv($list, 'recomputedSegments');
+			} else if($type == 'climbs') {
+				$list = [];
+				foreach ($data as $climb) {
+					$a = [];
+					foreach ($climb->segments as $segment) {
+				    	$a[] = $segment->start->distance;
+				    	$a[] = $segment->start->altitude;
+				    }
+				    $a[] = $climb->end->distance;
+				    $a[] = $climb->end->altitude;
+				    $list[] = $a;
+				}
+				
+
+				$this->writeCsv($list, 'climbs');
+			} else if($type == 'velocity') {
+				$velocity = $data[1];
+				$distance = $data[0];
+				$rdpSma = $data[2];
+				$list = [];
+				for($i = 0; $i < count($velocity); $i++) {
+				    $list[] = array($distance[$i], $velocity[$i]);
+				}
+				$this->writeCsv($list, 'velocity');
+				$this->writeCsv($rdpSma, 'velocitySMARDP');
 			}
 
-			$this->writeCsv($list, 'originalData');
-		} else if($type == 'rdp') {
-			$list = [];
-			foreach ($data as $point) {
-			    $list[] = array($point->distance, $point->altitude);
-			}
-
-			$this->writeCsv($list, 'rdp');
-		} else if($type == 'segments') {
-			$list = [];
-			foreach ($data as $segment) {
-			    $list[] = array($segment->start->distance, $segment->start->altitude);
-			}
-			$list[] = array($data[count($data)-1]->end->distance, $segment->end->altitude);
-
-			$this->writeCsv($list, 'segments');
-		} else if($type == 'filtered') {
-			$list = [];
-			foreach ($data as $segment) {
-			    $list[] = array($segment->start->distance, $segment->start->altitude);
-			}
-			$list[] = array($data[count($data)-1]->end->distance, $segment->end->altitude);
-
-			$this->writeCsv($list, 'filteredSegments');
-		} else if($type == 'recompute') {
-			$list = [];
-			foreach ($data as $segment) {
-			    $list[] = array($segment->start->distance, $segment->start->altitude);
-			}
-			$list[] = array($data[count($data)-1]->end->distance, $segment->end->altitude);
-
-			$this->writeCsv($list, 'recomputedSegments');
-		} else if($type == 'climbs') {
-			$list = [];
-			foreach ($data as $climb) {
-				$a = [];
-				foreach ($climb->segments as $segment) {
-			    	$a[] = $segment->start->distance;
-			    	$a[] = $segment->start->altitude;
-			    }
-			    $a[] = $climb->end->distance;
-			    $a[] = $climb->end->altitude;
-			    $list[] = $a;
-			}
-			
-
-			$this->writeCsv($list, 'climbs');
 		}
 	}
 
@@ -86,31 +106,40 @@ class FileWriter {
 	}
 
 	public function writeCsv($list, $name)
-	{
-		$path = $this->path . $name. '.csv';
-	    $fp = fopen($path, 'w+');
-	    foreach ($list as $line) {
-	        fputcsv($fp, $line);
-	    }
-	    fclose($fp);
+	{	
+		if(!$this->lock) {
+			$path = $this->path . $name. '.csv';
+		    $fp = fopen($path, 'w+');
+		    foreach ($list as $line) {
+		        fputcsv($fp, $line);
+		    }
+		    fclose($fp);
+		}
 	}
 
 
 
 	public function writeOutput($segments)
-	{
-	    $str = '';
-	    // $prevSegm = $segments[0];
-	    for($i = 0; $i < count($segments); $i++) {
-	        $str .= $segments[$i]->start->distance . ',' . $segments[$i]->length . ',' . $segments[$i]->gradient . '|';
-	        // $prevSegm = $segments[$i];
-	    }
-	    $str = substr($str, 0, -1);
-	    echo 'output string: ' . $str;
-	    $fp = fopen( $this->path . 'outputString.xml', 'w+');
-	    fwrite($fp, $str);
-	    fclose($fp);
+	{	
+		if(!$this->lock) {
+		    $str = '';
+		    // $prevSegm = $segments[0];
+		    for($i = 0; $i < count($segments); $i++) {
+		        $str .= $segments[$i]->start->distance . ',' . $segments[$i]->length . ',' . $segments[$i]->gradient . '|';
+		        // $prevSegm = $segments[$i];
+		    }
+		    $str = substr($str, 0, -1);
+		    echo 'Output string: <br>' . $str . '<br>';
+		    $fp = fopen( $this->path . 'outputString.xml', 'w+');
+		    fwrite($fp, $str);
+		    fclose($fp);
 
+		}
+
+	}
+
+	public function lock() {
+		$this->lock = true;
 	}
 
 

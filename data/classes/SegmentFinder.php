@@ -8,8 +8,8 @@ class SegmentFinder {
 	public static function findSegments($dataPoints) {
 		global $fileWriter;
 		### apply RDP algo
-	    $smoothDataPoints = RDP::RamerDouglasPeucker2d($dataPoints, Config::$epsilonRPD);
-	    echo 'apply RDP: '.count($smoothDataPoints).'<br>';
+	    $smoothDataPoints = RDP::RamerDouglasPeuckerSegments($dataPoints, Config::$epsilonRPD);
+	    
 	    ###
 
 	    ### write data in CSV 
@@ -18,7 +18,6 @@ class SegmentFinder {
 
 	    ### compute segments
 	    $segments = self::computeSegments($smoothDataPoints, Config::$lowGradientThreshold, Config::$highGradientThreshold);
-	    echo 'Compute segments: '.count($segments).'<br>';
 	    ###
 
 	    ### write data in CSV 
@@ -27,7 +26,6 @@ class SegmentFinder {
 
 	    ### filter segments
 	    $filteredSegments = self::filterSegments($segments);
-	    echo 'Filter segments: '.count($filteredSegments).'<br>'; 
 	    ###
 
 	    ### write data in CSV 
@@ -36,7 +34,6 @@ class SegmentFinder {
 
 	    ### recompute segments
 	    $recompSegments = self::recomputeSegments($filteredSegments, Config::$lowGradientThresholdRecomp, Config::$highGradientThresholdRecomp);
-	    echo 'Recompute segments: '.count($recompSegments).'<br>';
 	    ### 
 
 	    ### write data in CSV 

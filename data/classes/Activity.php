@@ -1,13 +1,4 @@
 <?php 
-// include_once 'Configuration.php';
-// include_once 'vo2max.php';
-// function classes_autoload($class_name) {
-//     $file = 'classes/'.$class_name.'.php';
-//     if(file_exists($file)) {
-//       	include_once($file);
-//     }
-// }
-// spl_autoload_register('classes_autoload');
 class Activity {
 
 	public $id;
@@ -18,9 +9,13 @@ class Activity {
 
 	public $rawDataPoints;
 
+	public $rawStravaActivity;
+
 	public $elapsedTime;
 
 	public $distance;
+
+	public $averageSpeed;
 
 	public $segments;
 
@@ -38,11 +33,11 @@ class Activity {
 
 	public $surface;
 
-	public $type; //todo
+	public $activityType; //todo
 
 	public $temperature; //todo
 
-	public $splitType; //todo
+	public $splitType; 
 
 
 
@@ -54,13 +49,17 @@ class Activity {
 		$this->name = $stravaActivity['name'];
 		$this->elapsedTime = $stravaActivity['elapsed_time'];
 		$this->distance = $stravaActivity['distance'];
+		$this->averageSpeed = $stravaActivity['average_speed'];
 		$this->rawStream = $rawStream;
+		$this->rawStravaActivity = $stravaActivity;
 		$dataPoints = $this->generateDataPoints($rawStream);
 		$this->rawDataPoints = $this->cleanDataPoints($dataPoints, Config::$cleanMinDist);
+		$this->determineSplitType();
+   		$this->determineActivityType();
+    
 		### write data in CSV 
 	    $fileWriter->writeControlData($this->rawDataPoints, 'original');
 	    ###
-		
 	}
 
 	private function generateDataPoints($stream) {
@@ -109,7 +108,7 @@ class Activity {
 	    }
 	    // push last one
 	    $response[] = $dataPoints[count($dataPoints) - 1];
-	    echo 'remove measure points that are closer than '.$distThreshold.' m distance, count before: ' . count($dataPoints) . ' count after: ' . count($response) . ' <br>';
+	    // echo 'remove measure points that are closer than '.$distThreshold.' m distance, count before: ' . count($dataPoints) . ' count after: ' . count($response) . ' <br>';
 	    return $response;
 	}
 
@@ -144,7 +143,11 @@ class Activity {
 		$this->elevationLoss = $down;
 	}
 
-	function computePercentageHilly() {
+	public function calculateVo2max() {
+		$this->vo2Max = Vo2Max::vo2maxWithElevation($this->distance, $this->elapsedTime, $this->elevationGain, $this->elevationLoss);
+	}
+
+	public function computePercentageHilly() {
 		$hilly = 0;
 	    for ($i = 0; $i < count($this->segments); $i++) {
 	        $gradient = $this->segments[$i]->gradient;
@@ -188,7 +191,7 @@ class Activity {
 		$this->surface = array($surface, $percent);
 	}
 
-	function calculateClimbScore() {
+	public function calculateClimbScore() {
 		$fietsSum = 0;
 		$percentageFlat = 1.0 - $this->percentageHilly;
 		foreach ($this->climbs as $climb) {
@@ -200,8 +203,134 @@ class Activity {
 		$this->climbScore = round($score, 2);
 	}
 
+	public function determineActivityType() {
+		global $fileWriter;
+		if($this->rawStravaActivity['workout_type'] == 1) {
+			$this->activityType = 'race';
+		} else if($this->rawStravaActivity['workout_type'] == 2) {
+			$this->activityType = 'long run';
+		} else if($this->rawStravaActivity['workout_type'] == 0 || $this->rawStravaActivity['workout_type'] == 3) {
+			$velocity = $this->rawStream[4]['data'];
+			$distance = $this->rawStream[2]['data'];
+			$sma = $this->simpleMovingAverage($velocity, 3);
+			
+			$tuple = [];
+			for($i = 0; $i < count($sma); $i++) {
+				$tuple[] = array($distance[$i], $sma[$i]);
+			}
+			$rdpSMA = RDP::RamerDouglasPeucker2d($tuple, 0.1);
 
-	// public function toString() {
-	// }
+			
+			### write data in CSV 
+			$fileWriter->writeControlData(array($distance, $velocity, $rdpSMA), 'velocity');
+			###
+		}
+	}
+
+    public function simpleMovingAverage($numbers, $n)
+    {
+        $m   = count($numbers);
+        $SMA = [];
+        // Counters
+        $new       = $n; // New value comes into the sum
+        $drop      = 0;  // Old value drops out
+        $yesterday = 0;  // Yesterday's SMA
+        // Base case: initial average
+        $SMA[] = array_sum(array_slice($numbers, 0, $n)) / $n;
+        // Calculating successive values: New value comes in; old value drops out
+        while ($new < $m) {
+            $SMA[] = $SMA[$yesterday] + ($numbers[$new] / $n) - ($numbers[$drop] / $n);
+            $drop++;
+            $yesterday++;
+            $new++;
+        }
+        return $SMA;
+    }
+
+    public function determineSplitType() {
+
+    	$activitySpeedSec = 1000 / $this->averageSpeed;
+    	## Threshold adaption
+    	$secThreshold = Config::$evenSplitThreshold;
+    	
+
+    	## max wrong speeds per half splits
+    	$maxWrongSpeed = 1;
+    	if($this->distance > 12000) {
+    		$maxWrongSpeed = 3;
+    	} else if($this->distance > 22000) {
+    		$maxWrongSpeed = 5;
+    	}
+		$splits = $this->rawStravaActivity['splits_metric'];
+		$splitsMiddle = floor(count($splits)/2);
+		$firstHalf = array('fasterThreshold' =>0, 'faster' => 0, 'slower' => 0, 'slowerThreshold' => 0);
+		$secondHalf = array('fasterThreshold' =>0, 'faster' => 0, 'slower' => 0, 'slowerThreshold' => 0);
+		for($i = 0; $i < $splitsMiddle; $i++) {
+			$averageSpeed = 1000 / $splits[$i]['average_speed'];
+			if($averageSpeed < $activitySpeedSec - $secThreshold) {
+				$firstHalf['fasterThreshold'] += 1;
+			} else if($averageSpeed <= $activitySpeedSec) {
+				$firstHalf['faster'] += 1;
+			} else if($averageSpeed > $activitySpeedSec + $secThreshold) {
+				$firstHalf['slowerThreshold'] += 1;
+			} else if($averageSpeed >= $activitySpeedSec) {
+				$firstHalf['slower'] += 1;
+			} 
+		}
+		for($i = $splitsMiddle; $i < count($splits); $i++) {
+			if($splits[$i]['distance'] > 800) {
+				$averageSpeed = 1000 / $splits[$i]['average_speed'];
+				if($averageSpeed < $activitySpeedSec - $secThreshold) {
+					$secondHalf['fasterThreshold'] += 1;
+				} else if($averageSpeed <= $activitySpeedSec) {
+					$secondHalf['faster'] += 1;
+				} else if($averageSpeed > $activitySpeedSec + $secThreshold) {
+					$secondHalf['slowerThreshold'] += 1;
+				} else if($averageSpeed >= $activitySpeedSec) {
+					$secondHalf['slower'] += 1;
+				} 
+			}
+		}
+
+		$type = 'no type';
+
+		if($firstHalf['fasterThreshold'] + $firstHalf['faster']  >= $splitsMiddle - $maxWrongSpeed && $secondHalf['slowerThreshold'] + $secondHalf['slower']  >= $splitsMiddle - $maxWrongSpeed) {
+			$type = 'positive';
+		} else if($firstHalf['slowerThreshold'] + $firstHalf['slower']  >= $splitsMiddle - $maxWrongSpeed && $secondHalf['fasterThreshold'] + $secondHalf['faster']  >= $splitsMiddle - $maxWrongSpeed) {
+			$type = 'negative';
+		} else if($firstHalf['faster'] + $firstHalf['slower'] >= $splitsMiddle - $maxWrongSpeed && $secondHalf['faster'] + $secondHalf['slower'] >= $splitsMiddle - $maxWrongSpeed) {
+			$type = 'even';
+		} else {
+			$type = 'mixed';
+		}
+		$this->splitType = $type;
+	}
+
+    
+
+
+	public function printActivity() {
+		echo '<h3>Activity "'.$this->name.'" </h3>';
+		echo 'Distance: '.$this->distance.' m<br>';
+		echo 'Elapsed time: '.round(($this->elapsedTime / 60), 2).' min<br>';
+		echo 'Average speed: '.floor((1000/$this->averageSpeed/60)). ':'.(1000/$this->averageSpeed%60) .' min/km<br>';
+		echo 'Activity type: '.$this->activityType.'<br>';
+		echo 'Split type: '.$this->splitType.'<br>';
+		echo 'Elevation + : '.round($this->elevationGain, 2).' m, Elevation - : '.round($this->elevationLoss, 2).' m<br>';
+		echo 'Percentage hilly: '.round($this->percentageHilly * 100, 2).' %<br>';
+		echo 'VO2max: '.round($this->vo2Max, 2).'<br>';
+		echo 'Surface: '.$this->surface[0] . ' '. $this->surface[1].' %<br>';
+		echo '#Segments: '.count($this->segments).'<br>';
+		echo '#Climbs: '.count($this->climbs).'<br>';
+		echo 'Climb score: '.round($this->climbScore, 2).'<br>';
+		// echo '<br>';
+	    $i = 1;
+	    foreach ($this->climbs as $climb) {
+	        echo $i.'. Climb: VAM '.$climb->getVerticalSpeed().' m/h, gradient '.$climb->gradient.' %, length '.$climb->length.' m, Fiets index '.round($climb->fietsIndex, 2).' <br>';
+	        $i++;
+	    }
+	    // echo '<br>';
+
+	}
 
 }

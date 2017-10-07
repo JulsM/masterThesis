@@ -9,7 +9,7 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     $app->createStravaApi($_POST['token']);
     $api = $app->getApi();
     $stravaActivity = $api->getActivty($activtityId);
-    $rawStream = $api->getStream($activtityId, "distance,altitude,latlng,time");
+    $rawStream = $api->getStream($activtityId, "distance,altitude,latlng,time,velocity_smooth");
 
     
     
@@ -20,7 +20,7 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
         mkdir("output/".$athleteName, 0777);
     }
     $fileWriter = new FileWriter($athleteName);
-
+    // $fileWriter->lock();
     
 
 }
@@ -38,57 +38,40 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     <?php
 
     $activity = new Activity($activtityId, $stravaActivity, $rawStream);
-    echo '<p>Segment computation for activity: "'.$activity->name.'"</p>';
-
-  
-    $activity->determineSurface();
-    echo 'Surface: '.$activity->surface[0] . '<br>';
-    
     
     ## Segments ##
 
-    $activity->findSegments();
+    echo '<p>Segment computation for activity: "'.$activity->name.'"</p>';
 
-    echo 'First segment: ';
-    $activity->segments[0]->toString();
-    echo 'Last segment: ';
-    $activity->segments[count($activity->segments)-1]->toString();
-   
+    $activity->findSegments();
 
     echo '<br><br>';
 
+    ### surface
+    // $activity->determineSurface();
+    ###
+
     ### elevation gain
     $activity->calculateElevationGain();
-    echo 'strava elevation gain: '.$stravaActivity['total_elevation_gain'].'<br>';
-    echo 'google elevation+ : ' . $activity->elevationGain . ' , elevation- :' . $activity->elevationLoss.'<br>';
     ###
 
     ### VO2max
-    $standardVo2max = Vo2Max::vo2max($activity->distance, $activity->elapsedTime);
-    echo 'standard VO2max: '.$standardVo2max.'<br>';
-    $activity->vo2max = Vo2Max::vo2maxWithElevation($activity->distance, $activity->elapsedTime, $activity->elevationGain, $activity->elevationLoss);
-    echo 'VO2max with elevation: '.$activity->vo2max.'<br>';
+    $activity->calculateVo2max();
     ### 
 
-    ### climbs
+    ### Hilly
     $activity->computePercentageHilly();
-    echo 'percentage hilly: '.$activity->percentageHilly.'<br>';
-    // compute climbs
-    $activity->findClimbs();
-    echo 'Number climbs: '.count($activity->climbs).'<br>';
-    
-
-    // vertical speed
-    $i = 1;
-    foreach ($activity->climbs as $climb) {
-        echo 'climb '.$i.': VAM '.$climb->getVerticalSpeed().' m/h, gradient '.$climb->gradient.' %, length '.$climb->length.' m, fiets '.$climb->fietsIndex.' <br>';
-        $i++;
-    }
-
-    // climb score
-    $activity->calculateClimbScore();
-    echo 'Climb score: '.$activity->climbScore.'<br>';
     ###
+    
+    ### climbs
+    $activity->findClimbs();
+    ###
+    
+    ### climb score
+    $activity->calculateClimbScore();
+    ###
+
+    $activity->printActivity();
 
     ## test route
     // $route = getRoute($_POST['token'], 10393066);

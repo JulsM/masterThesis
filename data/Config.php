@@ -26,4 +26,7 @@ class Config {
 	static $minClimbGradient = 2; // %
 	static $maxDistDownBetween = 250; // meters
 	static $hillySegmentThreshold = 2; // %
+
+	## split type
+	static $evenSplitThreshold = 2; // sec
 }
