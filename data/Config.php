@@ -29,4 +29,7 @@ class Config {
 
 	## split type
 	static $evenSplitThreshold = 2; // sec
+
+	## Intervals
+	static $intervalTrainingPercent = 0.8; // 120 %
 }

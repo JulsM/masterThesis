@@ -48,7 +48,7 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     echo '<br><br>';
 
     ### surface
-    // $activity->determineSurface();
+    $activity->determineSurface();
     ###
 
     ### elevation gain

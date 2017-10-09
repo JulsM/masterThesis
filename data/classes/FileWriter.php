@@ -114,6 +114,7 @@ class FileWriter {
 		        fputcsv($fp, $line);
 		    }
 		    fclose($fp);
+		    chmod($path, 0777);
 		}
 	}
 
