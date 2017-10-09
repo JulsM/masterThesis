@@ -38,24 +38,30 @@ class StravaApiClient {
         return $data;
     }
 
-    public function getActivties($number)
+    public function getAthlete()
+    {
+        try {
+
+            $athlete = $this->client->getAthlete();
+            
+        } catch (Exception $e) {
+            print $e->getMessage();
+        }
+        return $athlete;
+    }
+
+    public function getActivties($after)
     {
 
         try {
 
-            $activities     = $this->client->getAthleteActivities(null, null, null, $number);
-            $returnActivity = array();
+            $activities     = $this->client->getAthleteActivities(null, $after, null, null);
+            $returnActivity = [];
 
             foreach ($activities as $activity) {
                 if (strtolower($activity['type']) == 'run') {
-                    $ac      = $this->client->getActivity($activity['id']);
-                    if(array_key_exists('device_name', $ac)) {
-                        $data = array_merge(array('device_name' => $ac['device_name']), $activity);
-                    }
-                    $data = array_merge(array('id' => $ac['id']), $data);
-                    array_push($returnActivity, $data);
+                    $returnActivity[] = $this->client->getActivity($activity['id']);
                 }
-
             }
 
         } catch (Exception $e) {
