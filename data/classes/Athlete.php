@@ -11,13 +11,17 @@ class Athlete {
 
 	public $activities;
 
-	public $fourWeekMileage; //todo
+	public $weeklyMileage; 
 
 	public $typeCategory; //todo
 
 	public $averageTrainingPace; 
 
 	public $averageRacePace; 
+
+	public $fitness; //todo
+
+	public $tapering; //todo
 
 	
 
@@ -56,6 +60,21 @@ class Athlete {
 
 	}
 
+	public function calculateWeeklyMileage($stravaActivities) {
+		$mileage = 0;
+		for($i = 0; $i < count($stravaActivities); $i++) {
+			$ac = $stravaActivities[$i];
+			$mileage += $ac['distance'];
+		}
+		if($mileage > 0) {
+			$this->weeklyMileage = $mileage / abs(Config::$weeksIntoPast);
+		}
+		
+		// echo $mileage;
+		// echo date('d.m.y', strtotime(Config::$weeksIntoPast));
+
+	}
+
 	
 
 	public function printAthlete() {
@@ -63,6 +82,7 @@ class Athlete {
 		echo 'Gender: '.$this->gender.'<br>';
 		echo 'Average training pace: '.floor((1000/$this->averageTrainingPace/60)). ':'.(1000/$this->averageTrainingPace%60) .' min/km<br>';
 		echo 'Average race pace: '.floor((1000/$this->averageRacePace/60)). ':'.(1000/$this->averageRacePace%60) .' min/km<br>';
+		echo 'Weekly mileage: '.round($this->weeklyMileage/1000, 2).' km<br>';
 	}
 
 }

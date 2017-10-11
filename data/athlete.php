@@ -36,12 +36,14 @@ if (isset($_POST['id'])) {
     $stravaAthlete = $api->getAthlete($_POST['id']);
     $athlete = new Athlete($stravaAthlete);
 
-    $dateInPast = strtotime('-20 weeks');
-    // echo date('Y-m-d', $dateInPast);
+    $dateInPast = strtotime(Config::$weeksIntoPast.' weeks');
+    // echo date('d-m-Y', $dateInPast).' ';
     $stravaActivities = $api->getActivties($dateInPast);
     // echo count($stravaActivities);
 
     $athlete->calculateAveragePaces($stravaActivities);
+
+    $athlete->calculateWeeklyMileage($stravaActivities);
 
     $athlete->printAthlete();
 

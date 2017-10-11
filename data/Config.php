@@ -32,4 +32,7 @@ class Config {
 
 	## Intervals
 	static $intervalTrainingPercent = 0.8; // 120 %
+
+	## athlete activities
+	static $weeksIntoPast = -4; //weeks
 }

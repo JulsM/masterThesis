@@ -1,5 +1,6 @@
 <?php
-ini_set('max_execution_time', 120);
+// ini_set('max_execution_time', 180);
+// set_time_limit(180);
 include 'StravaPHP/vendor/autoload.php';
 
 // use Pest;
@@ -55,8 +56,16 @@ class StravaApiClient {
 
         try {
 
-            $activities     = $this->client->getAthleteActivities(null, $after, null, null);
+            $activities     = $this->client->getAthleteActivities(null, $after, 1, 100);
             $returnActivity = [];
+
+            foreach ($activities as $activity) {
+                if (strtolower($activity['type']) == 'run') {
+                    $returnActivity[] = $this->client->getActivity($activity['id']);
+                }
+            }
+
+            $activities = $this->client->getAthleteActivities(null, $after, 2, 100);
 
             foreach ($activities as $activity) {
                 if (strtolower($activity['type']) == 'run') {
