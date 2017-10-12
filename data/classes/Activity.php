@@ -210,8 +210,15 @@ class Activity {
 			$this->activityType = 'race';
 		} else if($this->rawStravaActivity['workout_type'] == 2) {
 			$this->activityType = 'long run';
-		} else if($this->rawStravaActivity['workout_type'] == 0 || $this->rawStravaActivity['workout_type'] == 3) {
+		} else if($this->rawStravaActivity['workout_type'] == 3) {
 
+			if($this->isActivityInterval()){
+				$this->activityType = 'speedwork';
+			} else {
+				$this->activityType = 'base training';
+			}
+
+		} else if($this->rawStravaActivity['workout_type'] == 0) {
 			if(($this->distance > 4900 || $this->distance < 5300 || $this->distance > 9900 || $this->distance < 10300 || $this->distance > 20000 || $this->distance < 21500 || $this->distance > 41000 || $this->distance < 43000) && 1000 / $this->averageSpeed < $averageTrainingPace - 20) {
 				$this->activityType = 'race';
 			} else if($this->distance > 15000 && 1000 / $this->averageSpeed > $averageTrainingPace - 20) {
@@ -221,7 +228,6 @@ class Activity {
 			} else {
 				$this->activityType = 'base training';
 			}
-
 		}
 	}
 
@@ -326,61 +332,39 @@ class Activity {
 
     public function determineSplitType() {
 
-    	$activitySpeedSec = 1000 / $this->averageSpeed;
-    	## Threshold adaption
-    	$secThreshold = Config::$evenSplitThreshold;
-    	
 
-    	## max wrong speeds per half splits
-    	$maxWrongSpeed = 1;
-    	if($this->distance > 12000) {
-    		$maxWrongSpeed = 3;
-    	} else if($this->distance > 22000) {
-    		$maxWrongSpeed = 5;
+    	$halfDistance = round($this->distance / 2, 2);
+    	$timeStream = $this->rawStream[1]['data'];
+    	$distanceStream = $this->rawStream[2]['data'];
+    	$index = 0;
+    	for($i = 0; $i < count($distanceStream); $i++) {
+    		$index++;
+    		if($distanceStream[$i] >= $halfDistance) {
+    			break;
+    		}
     	}
-		$splits = $this->rawStravaActivity['splits_metric'];
-		$splitsMiddle = floor(count($splits)/2);
-		$firstHalf = array('fasterThreshold' =>0, 'faster' => 0, 'slower' => 0, 'slowerThreshold' => 0);
-		$secondHalf = array('fasterThreshold' =>0, 'faster' => 0, 'slower' => 0, 'slowerThreshold' => 0);
-		for($i = 0; $i < $splitsMiddle; $i++) {
-			$averageSpeed = 1000 / $splits[$i]['average_speed'];
-			if($averageSpeed < $activitySpeedSec - $secThreshold) {
-				$firstHalf['fasterThreshold'] += 1;
-			} else if($averageSpeed <= $activitySpeedSec) {
-				$firstHalf['faster'] += 1;
-			} else if($averageSpeed > $activitySpeedSec + $secThreshold) {
-				$firstHalf['slowerThreshold'] += 1;
-			} else if($averageSpeed >= $activitySpeedSec) {
-				$firstHalf['slower'] += 1;
-			} 
-		}
-		for($i = $splitsMiddle; $i < count($splits); $i++) {
-			if($splits[$i]['distance'] > 800) {
+
+    	$timeFirstHalf = $timeStream[$index];
+    	$timeSecondHalf = $timeStream[count($timeStream) - 1] - $timeFirstHalf;
+    	$threshold = Config::$evenSplitThreshold * round($this->distance / 1000) / 2;
+
+    	if($timeFirstHalf - $threshold > $timeSecondHalf + $threshold) {
+    		$this->splitType = 'negative';
+    	} else if($timeFirstHalf + $threshold < $timeSecondHalf - $threshold) {
+    		$this->splitType = 'positive';
+    	} else {
+    		$this->splitType = 'even';
+    		$activitySpeedSec = 1000 / $this->averageSpeed;
+			$splits = $this->rawStravaActivity['splits_metric'];
+			for($i = 0; $i < count($splits); $i++) {
 				$averageSpeed = 1000 / $splits[$i]['average_speed'];
-				if($averageSpeed < $activitySpeedSec - $secThreshold) {
-					$secondHalf['fasterThreshold'] += 1;
-				} else if($averageSpeed <= $activitySpeedSec) {
-					$secondHalf['faster'] += 1;
-				} else if($averageSpeed > $activitySpeedSec + $secThreshold) {
-					$secondHalf['slowerThreshold'] += 1;
-				} else if($averageSpeed >= $activitySpeedSec) {
-					$secondHalf['slower'] += 1;
+				if($averageSpeed >= $activitySpeedSec + $secThreshold || $averageSpeed <= $activitySpeedSec - $secThreshold) {
+					$this->splitType = 'mixed';
 				} 
 			}
 		}
+		
 
-		$type = 'no type';
-
-		if($firstHalf['fasterThreshold'] + $firstHalf['faster']  >= $splitsMiddle - $maxWrongSpeed && $secondHalf['slowerThreshold'] + $secondHalf['slower']  >= $splitsMiddle - $maxWrongSpeed) {
-			$type = 'positive';
-		} else if($firstHalf['slowerThreshold'] + $firstHalf['slower']  >= $splitsMiddle - $maxWrongSpeed && $secondHalf['fasterThreshold'] + $secondHalf['faster']  >= $splitsMiddle - $maxWrongSpeed) {
-			$type = 'negative';
-		} else if($firstHalf['faster'] + $firstHalf['slower'] >= $splitsMiddle - $maxWrongSpeed && $secondHalf['faster'] + $secondHalf['slower'] >= $splitsMiddle - $maxWrongSpeed) {
-			$type = 'even';
-		} else {
-			$type = 'mixed';
-		}
-		$this->splitType = $type;
 	}
 
     
