@@ -24,10 +24,9 @@ $result = $db->query('SELECT * FROM users');
 				if ($result != null) {
 					foreach ($result as $row) {
 					    echo '<div style="margin: 20px">'.$n.' - '.$row['name'].', '.$row['email'] . ', ' . $row['strava_id'];
-					    echo '<form style="display: inline; margin: 10px" action="athlete.php" method="post">
-					    		<input type="hidden" value="'.$row['id'].'" name="id">
-					    		<input type="hidden" value="'.$row['name'].'" name="name">
-								<input type="submit" value="Get activities">
+					    echo '<form style="display: inline; margin: 10px" action="athlete.php" method="get">
+					    		<input type="hidden" value="'.$row['strava_id'].'" name="strava_id">
+								<input type="submit" value="Show athlete">
 							</form></div>';
 						$n++;
 					}

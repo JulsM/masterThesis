@@ -29,7 +29,7 @@ class Segment {
 	    $this->elevation = $this->end->altitude - $this->start->altitude;
 	}
 
-	public function toString() {
+	public function printSegment() {
 		echo 'Segment start '.$this->start->distance.', end '.$this->end->distance.', length '.$this->length.', gradient '.$this->gradient.'<br>';
 	}
 

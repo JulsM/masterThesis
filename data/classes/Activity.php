@@ -1,9 +1,12 @@
 <?php 
+
 class Activity {
 
 	public $id;
 
 	public $name;
+
+	public $date;
 
 	public $rawStream;
 
@@ -39,27 +42,57 @@ class Activity {
 
 	public $splitType; 
 
+	public $writeFiles = false;
 
 
 
 
-	public function __construct($activtityId, $stravaActivity, $rawStream) {
+
+	public function __construct($data, $type, $rawStream=null) {
 		global $fileWriter;
-		$this->id = $activtityId;
-		$this->name = $stravaActivity['name'];
-		$this->elapsedTime = $stravaActivity['elapsed_time'];
-		$this->distance = $stravaActivity['distance'];
-		$this->averageSpeed = $stravaActivity['average_speed'];
-		$this->rawStream = $rawStream;
-		$this->rawStravaActivity = $stravaActivity;
-		$dataPoints = $this->generateDataPoints($rawStream);
-		$this->rawDataPoints = $this->cleanDataPoints($dataPoints, Config::$cleanMinDist);
-		$this->determineSplitType();
-   		$this->determineActivityType();
+		if($type == 'strava') {
+			$this->id = $data['id'];
+			$this->date = $data['start_date'];
+			$this->name = $data['name'];
+			$this->elapsedTime = $data['elapsed_time'];
+			$this->distance = $data['distance'];
+			$this->averageSpeed = $data['average_speed'];
+			$this->rawStream = $rawStream;
+			$this->rawStravaActivity = $data;
+			$dataPoints = $this->generateDataPoints($rawStream);
+			$this->rawDataPoints = $this->cleanDataPoints($dataPoints, Config::$cleanMinDist);
+			$this->determineSplitType();
+	   		$this->determineActivityType();
+	   		$this->findSegments();
+	   		$this->calculateElevationGain();
+	   		$this->calculateVo2max();
+	   		$this->computePercentageHilly();
+	   		$this->findClimbs();
+	   		$this->calculateClimbScore();
+	   		// $this->determineSurface();
+	   	} else {
+	   		$this->id = $data['strava_id'];
+			$this->date = $data['activity_timestamp'];
+			$this->name = $data['name'];
+			$this->elapsedTime = $data['elapsed_time'];
+			$this->distance = $data['distance'];
+			$this->averageSpeed = $data['average_speed'];
+			$this->rawStream = null;
+			$this->rawStravaActivity = null;
+			$this->rawDataPoints = unserialize($data['serialized_raw_data_points']);
+			$this->segments = unserialize($data['serialized_segments']);
+			$this->elevationGain = $data['elevation_gain'];
+			$this->elevationLoss = $data['elevation_loss'];
+			$this->vo2Max = $data['vo2_max'];
+			$this->climbs = unserialize($data['serialized_climbs']);
+			$this->climbScore = $data['climb_score'];
+			$this->percentageHilly = $data['percentage_hilly'];
+			$this->surface = $data['surface'];
+			$this->activityType = $data['activity_type'];
+			$this->splitType = $data['split_type'];
+	   	}
     
-		### write data in CSV 
-	    $fileWriter->writeControlData($this->rawDataPoints, 'original');
-	    ###
+    	
 	}
 
 	private function generateDataPoints($stream) {
@@ -113,19 +146,11 @@ class Activity {
 	}
 
 	public function findSegments() {
-		global $fileWriter;
 		$this->segments = SegmentFinder::findSegments($this->rawDataPoints);
-		### write output string
-	    $fileWriter->writeOutput($this->segments);
-	    ###
 	}
 
 	public function findClimbs() {
-		global $fileWriter;
 		$this->climbs = ClimbFinder::findClimbs($this->segments);
-		### write data in CSV 
-		$fileWriter->writeControlData($this->climbs, 'climbs');
-		###
 	}
 
 	public function calculateElevationGain() {
@@ -160,7 +185,7 @@ class Activity {
 	}
 
 	public function determineSurface() {
-		$surface = 'No data';
+		$result = null;
 		$percent = 0;
     	$surfacePoints = $this->cleanDataPoints($this->rawDataPoints, Config::$surfaceStepsDist);
     	$overpass = new OverpassApiClient();
@@ -183,12 +208,13 @@ class Activity {
 			arsort($surfaces);
 			$surface = key($surfaces);
 			$percent = reset($surfaces);
-	        
+	        $result = $surface.' '.$percent;
 	    } else {
 	        echo 'Surface: Error<br>';
 	    }
     
-		$this->surface = array($surface, $percent);
+		// $this->surface = array($surface, $percent);
+		$this->surface = $result;
 	}
 
 	public function calculateClimbScore() {
@@ -301,12 +327,17 @@ class Activity {
 		// echo ' mean positive '. $meanPositiveSpeed;
 		// echo ' average '.(1000 / $this->averageSpeed);
 		// print_r($intervalProbabilties);
-		$prob = array_sum($intervalProbabilties) / count($intervalProbabilties);
+		$prob = 0;
+		if(count($intervalProbabilties) > 0) {
+			$prob = array_sum($intervalProbabilties) / count($intervalProbabilties);
+		}
 		// echo 'Probabilty: '.$prob;
 		
-		### write data in CSV 
-		$fileWriter->writeControlData(array($distance, $velocity, $rdpSMA), 'velocity');
-		###
+		if($this->writeFiles) {
+			### write data in CSV 
+			$fileWriter->writeControlData(array($distance, $velocity, $rdpSMA), 'velocity');
+			###
+		}
 
 		return $prob > 0.5;
 	}
@@ -358,7 +389,7 @@ class Activity {
 			$splits = $this->rawStravaActivity['splits_metric'];
 			for($i = 0; $i < count($splits); $i++) {
 				$averageSpeed = 1000 / $splits[$i]['average_speed'];
-				if($averageSpeed >= $activitySpeedSec + $secThreshold || $averageSpeed <= $activitySpeedSec - $secThreshold) {
+				if($averageSpeed >= $activitySpeedSec + Config::$evenSplitThreshold || $averageSpeed <= $activitySpeedSec - Config::$evenSplitThreshold) {
 					$this->splitType = 'mixed';
 				} 
 			}
@@ -367,11 +398,59 @@ class Activity {
 
 	}
 
+	public static function downloadNewActivities($athleteId, $token) {
+		global $db, $app;
+		echo 'load activities';
+		$dateInPast = date('Y-m-d H:i:s e',strtotime(Config::$maxActivityAgo.' years'));
+        // echo $dateInPast.' ';
+        $query = 'SELECT activity_timestamp FROM activity WHERE athlete_id =' . $athleteId.' AND activity_timestamp > \''.$dateInPast.'\' ORDER BY "activity_timestamp" desc LIMIT 1';
+        $newestActivityDate = $db->query($query)[0]['activity_timestamp'];
+        $stravaDatePast = strtotime(Config::$maxActivityAgo.' years');
+        if(!empty($newestActivityDate)) {
+            $stravaDatePast = strtotime($newestActivityDate);
+        }
+        echo date('Y-m-d H:i:s e', $stravaDatePast);
+        $app->createStravaApi($token);
+        $api = $app->getApi();
+        $newStravaActivities = $api->getActivties($stravaDatePast); 
+
+        $returnObjects = [];
+        foreach ($newStravaActivities as $ac) {
+        	$rawStream = $api->getStream($ac['id'], "distance,altitude,latlng,time,velocity_smooth");
+        	$activity = new Activity($ac, 'strava', $rawStream);
+        	$returnObjects[] = $activity;
+        	$activity->printActivity();
+        	$db->saveActivity($activity, $athleteId);
+        }
+
+        return $returnObjects;
+        
+	}
+
+	public static function loadActivitiesDb($athleteId) {
+		global $db;
+		echo 'load activities db';
+		$dateInPast = date('Y-m-d H:i:s e',strtotime(Config::$maxActivityAgo.' years'));
+        $result = $db->getActivities($athleteId, $dateInPast);
+
+
+        $returnObjects = [];
+        if(count($result) > 0) {
+	        foreach ($result as $ac) {
+	        	$activity = new Activity($ac, 'db');
+	        	$returnObjects[] = $activity;
+	        }
+	    }
+
+        return $returnObjects;
+        
+	}
     
 
 
 	public function printActivity() {
 		echo '<h3>Activity "'.$this->name.'" </h3>';
+		echo 'Date: '.date('Y-m-d H:i:s e',strtotime($this->date)).'<br>';
 		echo 'Distance: '.$this->distance.' m<br>';
 		echo 'Elapsed time: '.round(($this->elapsedTime / 60), 2).' min<br>';
 		echo 'Average speed: '.floor((1000/$this->averageSpeed/60)). ':'.(1000/$this->averageSpeed%60) .' min/km<br>';
@@ -380,16 +459,18 @@ class Activity {
 		echo 'Elevation + : '.round($this->elevationGain, 2).' m, Elevation - : '.round($this->elevationLoss, 2).' m<br>';
 		echo 'Percentage hilly: '.round($this->percentageHilly * 100, 2).' %<br>';
 		echo 'VO2max: '.round($this->vo2Max, 2).'<br>';
-		echo 'Surface: '.$this->surface[0] . ' '. $this->surface[1].' %<br>';
+		echo 'Surface: '.$this->surface.' %<br>';
 		echo '#Segments: '.count($this->segments).'<br>';
 		echo '#Climbs: '.count($this->climbs).'<br>';
 		echo 'Climb score: '.round($this->climbScore, 2).'<br>';
 		// echo '<br>';
-	    $i = 1;
-	    foreach ($this->climbs as $climb) {
-	        echo $i.'. Climb: VAM '.$climb->getVerticalSpeed().' m/h, gradient '.$climb->gradient.' %, length '.$climb->length.' m, Fiets index '.round($climb->fietsIndex, 2).' <br>';
-	        $i++;
-	    }
+		if(count($this->climbs) > 0) {
+		    $i = 1;
+		    foreach ($this->climbs as $climb) {
+		        echo $i.'. Climb: VAM '.$climb->getVerticalSpeed().' m/h, gradient '.$climb->gradient.' %, length '.$climb->length.' m, Fiets index '.round($climb->fietsIndex, 2).' <br>';
+		        $i++;
+		    }
+		}
 	    // echo '<br>';
 
 	}

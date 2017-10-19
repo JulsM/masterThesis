@@ -39,11 +39,11 @@ class StravaApiClient {
         return $data;
     }
 
-    public function getAthlete()
+    public function getAthlete($id)
     {
         try {
 
-            $athlete = $this->client->getAthlete();
+            $athlete = $this->client->getAthlete($id);
             
         } catch (Exception $e) {
             print $e->getMessage();
@@ -56,7 +56,7 @@ class StravaApiClient {
 
         try {
 
-            $activities     = $this->client->getAthleteActivities(null, $after, 1, 100);
+            $activities     = $this->client->getAthleteActivities(null, $after, 1, 10);
             $returnActivity = [];
 
             foreach ($activities as $activity) {
@@ -65,13 +65,13 @@ class StravaApiClient {
                 }
             }
 
-            $activities = $this->client->getAthleteActivities(null, $after, 2, 100);
+            // $activities = $this->client->getAthleteActivities(null, $after, 2, 100);
 
-            foreach ($activities as $activity) {
-                if (strtolower($activity['type']) == 'run') {
-                    $returnActivity[] = $this->client->getActivity($activity['id']);
-                }
-            }
+            // foreach ($activities as $activity) {
+            //     if (strtolower($activity['type']) == 'run') {
+            //         $returnActivity[] = $this->client->getActivity($activity['id']);
+            //     }
+            // }
 
         } catch (Exception $e) {
             print $e->getMessage();

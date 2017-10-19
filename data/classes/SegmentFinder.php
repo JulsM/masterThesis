@@ -1,6 +1,7 @@
 <?php
 class SegmentFinder {
-	
+
+	public static $writeFiles = false;
 
 	public function __construct() {
 	}
@@ -11,34 +12,38 @@ class SegmentFinder {
 	    $smoothDataPoints = RDP::RamerDouglasPeuckerSegments($dataPoints, Config::$epsilonRPD);
 	    
 	    ###
-
-	    ### write data in CSV 
-	    $fileWriter->writeControlData($smoothDataPoints, 'rdp');
-	    ###
+	    if(self::$writeFiles) {
+		    ### write data in CSV 
+		    $fileWriter->writeControlData($smoothDataPoints, 'rdp');
+		    ###
+		}
 
 	    ### compute segments
 	    $segments = self::computeSegments($smoothDataPoints, Config::$lowGradientThreshold, Config::$highGradientThreshold);
 	    ###
-
-	    ### write data in CSV 
-	    $fileWriter->writeControlData($segments, 'segments');
-	    ###
+	    if(self::$writeFiles) {
+		    ### write data in CSV 
+		    $fileWriter->writeControlData($segments, 'segments');
+		    ###
+		}
 
 	    ### filter segments
 	    $filteredSegments = self::filterSegments($segments);
 	    ###
-
-	    ### write data in CSV 
-	    $fileWriter->writeControlData($filteredSegments, 'filtered');
-	    ###
+	    if(self::$writeFiles) {
+		    ### write data in CSV 
+		    $fileWriter->writeControlData($filteredSegments, 'filtered');
+		    ###
+		}
 
 	    ### recompute segments
 	    $recompSegments = self::recomputeSegments($filteredSegments, Config::$lowGradientThresholdRecomp, Config::$highGradientThresholdRecomp);
 	    ### 
-
-	    ### write data in CSV 
-	    $fileWriter->writeControlData($recompSegments, 'recompute');
-	    ###
+	    if(self::$writeFiles) {
+		    ### write data in CSV 
+		    $fileWriter->writeControlData($recompSegments, 'recompute');
+		    ###
+		}
 	    return $recompSegments;
 	}
 

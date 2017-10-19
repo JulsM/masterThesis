@@ -31,19 +31,7 @@ class Db
         return $this->connection;
     }
 
-    // public function connect()
-    // {
-    //     if (!isset(self::$connection)) {
-
-    //         $config = parse_ini_file("config.ini");
-    //         try {
-    //             self::$connection = new PDO('mysql:host=' . $config['host'] . ';dbname=' . $config['dbname'], $config['username'], $config['password']);
-    //         } catch (PDOException $ex) {
-    //             echo "Error: " . $ex->getMessage();
-    //         }
-    //     }
-    //     return self::$connection;
-    // }
+    
 
     public function query($sql)
     {
@@ -52,7 +40,7 @@ class Db
         return pg_fetch_all($result);
     }
 
-    public function saveAthlete($data)
+    public function saveUser($data)
     {
         $sucess = false;
         try {
@@ -63,6 +51,69 @@ class Db
             echo $e->getMessage();
         }
         // print( self::query("select id from users where email = '".$data['mail']."'"));
+    }
+
+    public function saveAthlete($athlete)
+    {
+        $timestamp = date('Y-m-d H:i:s e');
+        $sucess = false;
+        try {
+            $statement = "INSERT INTO athlete (strava_id, name, gender, update_timestamp, token, weekly_mileage, average_training_pace, average_race_pace) VALUES ('".$athlete->id."', '".$athlete->name."', '".$athlete->gender."', '".$timestamp."', '".$athlete->token."', '".$athlete->weeklyMileage."', '".$athlete->averageTrainingPace."', '".$athlete->averageRacePace."')";
+            $result = pg_query($this->connection, $statement);
+            
+        } catch(Exception $e) {
+            echo $e->getMessage();
+        }
+    }
+
+    public function updateAthlete($athlete)
+    {
+        $timestamp = date('Y-m-d H:i:s e');
+        try {
+            $statement = "UPDATE athlete SET update_timestamp = '".$timestamp."', weekly_mileage = ".$athlete->weeklyMileage.", average_training_pace = ".$athlete->averageTrainingPace.", average_race_pace = ".$athlete->averageRacePace." WHERE strava_id = ".$athlete->id.";";
+            
+            $result = pg_query($this->connection, $statement);
+            
+        } catch(Exception $e) {
+            echo $e->getMessage();
+        }
+    }
+
+    public function saveActivity($activity, $athleteId)
+    {
+        $timestamp = date('Y-m-d H:i:s e');
+        try {
+            $statement = "INSERT INTO activity (strava_id, athlete_id, name, elapsed_time, distance, average_speed, elevation_gain, elevation_loss, vo2_max, percentage_hilly, surface, activity_type, split_type, update_timestamp, climb_score, serialized_segments, serialized_climbs, activity_timestamp, serialized_raw_data_points) VALUES ('".$activity->id."', '".$athleteId."','".$activity->name."', '".$activity->elapsedTime."', '".$activity->distance."', '".$activity->averageSpeed."', '".$activity->elevationGain."', '".$activity->elevationLoss."', '".$activity->vo2Max."', '".$activity->percentageHilly."', '".$activity->surface."', '".$activity->activityType."', '".$activity->splitType."', '".$timestamp."', '".$activity->climbScore."', '".serialize($activity->segments)."', '".serialize($activity->climbs)."', '".$activity->date."', '".serialize($activity->rawDataPoints)."')";
+            
+            $result = pg_query($this->connection, $statement);
+            
+        } catch(Exception $e) {
+            echo $e->getMessage();
+        }
+    }
+
+    public function updateActivity($activity)
+    {
+        $timestamp = date('Y-m-d H:i:s e');
+        try {
+            $statement = "UPDATE activity SET elapsed_time = ".$activity->elapsedTime.", distance = ".$activity->distance.", average_speed = ".$activity->averageSpeed.", elevation_gain = ".$activity->elevationGain.", elevation_loss = ".$activity->elevationLoss.", vo2_max = ".$activity->vo2Max.", percentage_hilly = ".$activity->percentageHilly.", surface = '".$activity->surface."', activity_type = '".$activity->activityType."', split_type = '".$activity->splitType."', update_timestamp = '".$timestamp."', climb_score = ".$activity->climbScore.", serialized_segments = '".serialize($activity->segments)."', serialized_climbs = '".serialize($activity->climbs)."' WHERE strava_id = ".$activity->id.";";
+            
+            $result = pg_query($this->connection, $statement);
+            
+        } catch(Exception $e) {
+            echo $e->getMessage();
+        }
+    }
+
+    public function getActivities($athleteId, $after) {
+        // echo $after;
+        $query = 'SELECT * FROM activity WHERE athlete_id =' . $athleteId.' AND activity_timestamp >= \''.$after.'\' ORDER BY activity_timestamp desc';
+        $result = $this->query($query);
+        if (empty($result)) {
+            return null;
+        } else {
+            return $result;
+        }
     }
 
 }

@@ -3,19 +3,59 @@ include_once '../database.php';
 include_once '../StravaApiClient.php';
 include_once 'App.php';
 include_once 'Autoloader.php';
-// include_once 'Config.php';
 
-// session_start();
-if (isset($_POST['id'])) {
-    $db     = Db::getInstance();
-    $conn   = $db->getConnection();
-    $result = $db->query('SELECT token FROM users WHERE id =' . $_POST['id']);
-    if (!empty($result)) {
-        $token = $result[0]['token'];
-        // $_SESSION['token'] = $token;
-        $app->createStravaApi($token);
-        $api = $app->getApi();
-        
+
+
+
+if (isset($_GET['strava_id'])) {
+    $db = Db::getInstance();
+    $athleteResult = $db->query('SELECT * FROM athlete WHERE strava_id =' . $_GET['strava_id']);
+
+    if(!empty($athleteResult)) { // athlete in database
+
+        $athlete = new Athlete($athleteResult[0], 'db');
+        if(isset($_GET['load']) && $_GET['load'] == true) { // download new activities from strava
+            Activity::downloadNewActivities($athlete->id, $athlete->token);
+        }
+
+        $athlete->activities = Activity::loadActivitiesDb($athlete->id); // load available activities from database
+
+        if(isset($_GET['update']) && $_GET['update'] == true) { // update athlete in database
+            
+            echo 'update';
+            $athlete->updateAthlete();
+        } else if(isset($_GET['surface']) && $_GET['surface'] == true) { // update surfaces in db
+            
+            echo ' surface update';
+            $processed = 0;
+            for($i = 0; $i < count($athlete->activities); $i++) {
+                $ac = $athlete->activities[$i];
+                if($ac->surface == null) {
+                    $ac->determineSurface();
+                    $db->updateActivity($ac);
+                    $processed++;
+                }
+                if($processed == 3) {
+                    break;
+                }
+            }
+            if($processed == 0) {
+                echo 'all surface data in db';
+            }
+
+            
+        }
+
+    } else { // athlete from strava
+        $result = $db->query('SELECT token FROM users WHERE strava_id =' . $_GET['strava_id']);
+        if (!empty($result)) {
+            $token = $result[0]['token'];
+            $app->createStravaApi($token);
+            $api = $app->getApi();
+            $stravaAthlete = $api->getAthlete($_GET['strava_id']);
+            $athlete = new Athlete($stravaAthlete, 'strava', $token);
+            $db->saveAthlete($athlete);
+        }
     }
 }
 
@@ -26,49 +66,57 @@ if (isset($_POST['id'])) {
 <!DOCTYPE html>
 <html>
     <head>
-
+        <meta charset="utf-8">
     </head>
     <body>
     <div style="width: 80%; height: 80%; margin: 5% auto">
 	
 	<?php
+    
 
-    $stravaAthlete = $api->getAthlete($_POST['id']);
-    $athlete = new Athlete($stravaAthlete);
-
-    $dateInPast = strtotime(Config::$weeksIntoPast.' weeks');
-    // echo date('d-m-Y', $dateInPast).' ';
-    $stravaActivities = $api->getActivties($dateInPast);
-    // echo count($stravaActivities);
-
-    $athlete->calculateAveragePaces($stravaActivities);
-
-    $athlete->calculateWeeklyMileage($stravaActivities);
+    
 
     $athlete->printAthlete();
 
+    echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
+                <input type="hidden" name="strava_id" value="'.$athlete->id.'">
+                <input type="hidden" name="update" value="true">
+                <input type="submit" value="Update athlete">
+            </form>';
 
+    echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
+                <input type="hidden" name="strava_id" value="'.$athlete->id.'">
+                <input type="hidden" name="load" value="true">
+                <input type="submit" value="Download new activities">
+            </form>';
+
+    echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
+                <input type="hidden" name="strava_id" value="'.$athlete->id.'">
+                <input type="hidden" name="surface" value="true">
+                <input type="submit" value="Update surface">
+            </form>';
+    
 
     ### list activities
     echo '<br><br>';
     echo 'All activities of '.$athlete->name.':<br>';
 
-	$num = 1;
-	foreach ($stravaActivities as $ac) {
+    if(count($athlete->activities) > 0) {
+    	$num = 1;
+    	foreach ($athlete->activities as $ac) {
 
 
-	    echo '<div>'.$num.'. ' . $ac['name'] . ', distance: ' . $ac['distance'] / 1000 .' km, workout type: '.$ac['workout_type'];
-        // if(array_key_exists('device_name', $ac)) {
-        //     echo ' device: '.  $ac['device_name'];
-        // }
-        echo '<form action="activity.php" method="post">
-                <input type="hidden" name="id" value="'.$ac['id'].'">
-                <input type="hidden" name="token" value="'.$token.'">
-                <input type="hidden" name="name" value="'.$_POST['name'].'">
-                <input type="submit" value="Process">
-            </form>'.' <br><br> </div>';
-	    $num++;
-	}
+    	    echo '<div>'.$num.'. ' . $ac->name . ', date: '.$ac->date.', distance: ' . $ac->distance / 1000 .' km, surface: '.$ac->surface;
+            echo '<form action="activity.php" method="get">
+                    <input type="hidden" name="strava_id" value="'.$ac->id.'">
+                    <input type="hidden" name="athlete" value="'.$athlete->name.'">
+                    <input type="submit" value="Show">
+                </form>'.' <br><br> </div>';
+    	    $num++;
+    	}
+    }
+
+    
 	?>
 
 	</div>

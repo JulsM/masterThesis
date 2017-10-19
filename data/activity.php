@@ -2,25 +2,55 @@
 include_once '../StravaApiClient.php';
 include_once 'App.php';
 include_once 'Autoloader.php';
+include_once '../database.php';
 // session_start();
 
-if (isset($_POST['token']) && isset($_POST['id'])) {
-    $activtityId = $_POST['id'];
-    $app->createStravaApi($_POST['token']);
-    $api = $app->getApi();
-    $stravaActivity = $api->getActivty($activtityId);
-    $rawStream = $api->getStream($activtityId, "distance,altitude,latlng,time,velocity_smooth");
-
+if (isset($_GET['strava_id'])) {
+    $db = Db::getInstance();
     
-    
-    $athleteName = $_POST['name'];
-    // chmod("output/".$athleteName, 0777);
-    
-    if(!is_dir("output/".$athleteName)) {
-        mkdir("output/".$athleteName, 0777);
+    $result = $db->query('SELECT * FROM activity WHERE strava_id = '.$_GET['strava_id']);
+    if(!empty($result)) {
+        $activity = new Activity($result[0], 'db');
     }
-    $fileWriter = new FileWriter($athleteName);
-    // $fileWriter->lock();
+
+    if(isset($_GET['athlete'])) {
+        $athleteName = $_GET['athlete'];
+
+    }
+
+    if($activity != null && isset($_GET['update']) && $_GET['update'] == true) {
+        $activity->determineSplitType();
+        // $activity->determineActivityType();
+        $activity->findSegments();
+        $activity->determineSurface();
+        $activity->calculateElevationGain();
+        $activity->calculateVo2max();
+        $activity->computePercentageHilly();
+        $activity->findClimbs();
+        $activity->calculateClimbScore();
+        $db->updateActivity($activity);
+    } else if($activity != null && isset($_GET['writeData']) && $_GET['writeData'] == true) {
+        
+        
+        // chmod("output/".$athleteName, 0777);
+        if(!is_dir("output/".$athleteName)) {
+            mkdir("output/".$athleteName, 0777);
+        }
+        
+        $fileWriter = new FileWriter($athleteName);
+        $fileWriter->writeControlData($activity->rawDataPoints, 'original');
+        SegmentFinder::$writeFiles = true;
+        $activity->findSegments();
+        $fileWriter->writeControlData($activity->climbs, 'climbs');
+        ### write output string
+        $fileWriter->writeOutput($activity->segments);
+        ###
+        
+    }
+    
+    
+    
+    
     
 
 }
@@ -37,62 +67,24 @@ if (isset($_POST['token']) && isset($_POST['id'])) {
     
     <?php
 
-    $activity = new Activity($activtityId, $stravaActivity, $rawStream);
     
-    ## Segments ##
-
-    echo '<p>Segment computation for activity: "'.$activity->name.'"</p>';
-
-    $activity->findSegments();
-
-    echo '<br><br>';
-
-    ### surface
-    $activity->determineSurface();
-    ###
-
-    ### elevation gain
-    $activity->calculateElevationGain();
-    ###
-
-    ### VO2max
-    $activity->calculateVo2max();
-    ### 
-
-    ### Hilly
-    $activity->computePercentageHilly();
-    ###
     
-    ### climbs
-    $activity->findClimbs();
-    ###
-    
-    ### climb score
-    $activity->calculateClimbScore();
-    ###
 
     $activity->printActivity();
 
-    ## test route
-    // $route = getRoute($_POST['token'], 10393066);
-    // $latlongArray = $route[0]['data'];
-    // $distanceArray = $route[1]['data'];
-    // $stravaElevation = $route[2]['data'];
+    echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
+                <input type="hidden" name="strava_id" value="'.$activity->id.'">
+                <input type="hidden" name="update" value="true">
+                <input type="hidden" name="athlete" value="'.$athleteName.'">
+                <input type="submit" value="Update activity">
+            </form>';
 
-    // $gradeSmooth  = $api->getStream($actitityId, "grade_smooth");
-    // $a = array();
-    // for($i = 0; $i < count($gradeSmooth[0]['data']); $i++) {
-    //     $a[] = array($gradeSmooth[0]['data'][$i], $gradeSmooth[1]['data'][$i]);
-    // }
-    // writeCsv($a, $athleteName.'/gradeSmooth');
-    
-    // $hr  = $api->getStream($actitityId, "heartrate");
-    // $velocitySmooth  = $api->getStream($actitityId, "velocity_smooth");
-    // $a = array();
-    // for($i = 0; $i < count($hr[0]['data']); $i++) {
-    //     $a[] = array($hr[0]['data'][$i], $hr[1]['data'][$i], $velocitySmooth[1]['data'][$i]);
-    // }
-    // writeCsv($a, $athleteName.'/hr_velocity');
+    echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
+                <input type="hidden" name="strava_id" value="'.$activity->id.'">
+                <input type="hidden" name="writeData" value="true">
+                <input type="hidden" name="athlete" value="'.$athleteName.'">
+                <input type="submit" value="Write chart data">
+            </form>';
 
     ?>
 

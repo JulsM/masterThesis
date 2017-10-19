@@ -31,7 +31,7 @@ if (isset($_POST['email']) && $_POST['email'] != "" && !isset($_GET['code'])) {
     if ($token != '') {
         $api = new StravaApiClient($token);
         $athleteData = $api->queryAthlete();
-        $db->saveAthlete($athleteData);
+        $db->saveUser($athleteData);
         header('Location: index.php?redirect');
         exit;
     }

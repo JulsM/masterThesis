@@ -6,7 +6,7 @@ class Config {
 
 	## Clean Google data
 	static $cleanMinDist = 5; // meters
-	static $surfaceStepsDist = 400; // meters
+	static $surfaceStepsDist = 500; // meters
 
 	## RDP
 	static $epsilonRPD = 2.5;
@@ -35,4 +35,5 @@ class Config {
 
 	## athlete activities
 	static $weeksIntoPast = -4; //weeks
+	static $maxActivityAgo = -2; //year
 }
