@@ -9,7 +9,14 @@ class FileWriter {
 	public function __construct($athleteName) {
 		$this->path = 'output/'.$athleteName.'/';
 		$this->lock = false;
-	}
+	
+		// chmod("output/".$athleteName, 0777);
+        if(!is_dir($this->path)) {
+            mkdir($this->path, 0777);
+        }
+
+    }
+		
 
 	public function writeControlData($data, $type) {
 		if(!$this->lock) {
@@ -136,6 +143,22 @@ class FileWriter {
 		    fclose($fp);
 
 		}
+
+	}
+
+	public function writeRaceFeatures($activities) {	
+		
+	    $list = [];
+	    $list[] = array('distance', 'elevation', 'finishTime');
+		for($i = 0; $i < count($activities); $i++) {
+			$ac = $activities[$i];
+			if($ac->activityType == 'race') {
+		    	$list[] = array($ac->distance, $ac->elevationGain, $ac->elapsedTime);
+		    }
+		}
+		$this->writeCsv($list, 'raceFeatures');
+
+		
 
 	}
 

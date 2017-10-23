@@ -19,6 +19,8 @@ class Athlete {
 
 	public $averageRacePace; 
 
+	public $averageElevationGain;
+
 	public $fitness; //todo
 
 	public $tapering; //todo
@@ -38,6 +40,8 @@ class Athlete {
 			$this->weeklyMileage = 0;
 			$this->averageRacePace = 0;
 			$this->averageTrainingPace = 0;
+			$this->averageElevationGain = 0;
+			$this->averagePercentageHilly = 0;
 		} else {
 			$this->id = $athlete['strava_id'];
 			$this->token = $athlete['token'];
@@ -46,6 +50,8 @@ class Athlete {
 			$this->weeklyMileage = $athlete['weekly_mileage'];
 			$this->averageTrainingPace = $athlete['average_training_pace'];
 			$this->averageRacePace = $athlete['average_race_pace'];
+			$this->averageElevationGain = $athlete['average_elevation_gain'];
+			$this->averagePercentageHilly = $athlete['average_percentage_hilly'];
 			// $this->activities = Activity::loadActivities($this->id);
 		}
 	}
@@ -94,20 +100,60 @@ class Athlete {
 
 	}
 
+	public function calculateAverageElevation() {
+		$elevation = 0;
+		for($i = 0; $i < count($this->activities); $i++) {
+			$elevation += $this->activities[$i]->elevationGain;
+		}
+		if($elevation > 0) {
+			$this->averageElevationGain = $elevation / count($this->activities);
+		}
+		
+
+	}
+
+	public function calculateAverageHilly() {
+		$hilly = 0;
+		for($i = 0; $i < count($this->activities); $i++) {
+			$hilly += $this->activities[$i]->percentageHilly;
+		}
+		if($hilly > 0) {
+			$this->averagePercentageHilly = $hilly / count($this->activities);
+		}
+		
+
+	}
+
 	public function updateAthlete() {
 		global $db;
 		if(count($this->activities) > 0) {
 			$this->calculateWeeklyMileage();
 			$this->calculateAveragePaces();
+			$this->calculateAverageElevation();
+			$this->calculateAverageHilly();
 		} else {
 			$this->weeklyMileage = 0;
 			$this->averageRacePace = 0;
 			$this->averageTrainingPace = 0;
+			$this->averageElevationGain = 0;
+			$this->averagePercentageHilly = 0;
 		}
 		
 
 		$db->updateAthlete($this);
 	}
+
+	public function getNumberActyvityType($type) {
+		$count = 0;
+		foreach ($this->activities as $ac) {
+			if($ac->activityType == $type) {
+				$count++;
+			}
+		}
+		return $count;
+	}
+
+	
 
 
 	
@@ -115,6 +161,10 @@ class Athlete {
 	public function printAthlete() {
 		echo '<h3>Athlete "'.$this->name.'" </h3>';
 		echo 'Gender: '.$this->gender.'<br>';
+		echo 'Number activities: '.count($this->activities).'<br>';
+		echo 'Number races: '.$this->getNumberActyvityType('race').'<br>';
+		echo 'Number speedwork: '.$this->getNumberActyvityType('speedwork').'<br>';
+		echo 'Number long runs: '.$this->getNumberActyvityType('long run').'<br>';
 		if($this->averageTrainingPace > 0) {
 			echo 'Average training pace: '.floor((1000/$this->averageTrainingPace/60)). ':'.(1000/$this->averageTrainingPace%60) .' min/km<br>';
 		}
@@ -122,6 +172,8 @@ class Athlete {
 			echo 'Average race pace: '.floor((1000/$this->averageRacePace/60)). ':'.(1000/$this->averageRacePace%60) .' min/km<br>';
 		}
 		echo 'Weekly mileage: '.round($this->weeklyMileage/1000, 2).' km<br>';
+		echo 'Average elevation gain: '.round($this->averageElevationGain, 2).' m<br>';
+		echo 'Average percentage hilly: '.round($this->averagePercentageHilly * 100, 2).' % (flat: '.(100 - round($this->averagePercentageHilly * 100, 2)).' %)<br>';
 	}
 
 }

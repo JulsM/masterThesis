@@ -1,3 +1,4 @@
+
 <?php
 include_once '../StravaApiClient.php';
 include_once 'App.php';
@@ -8,34 +9,36 @@ include_once '../database.php';
 if (isset($_GET['strava_id'])) {
     $db = Db::getInstance();
     
-    $result = $db->query('SELECT * FROM activity WHERE strava_id = '.$_GET['strava_id']);
-    if(!empty($result)) {
-        $activity = new Activity($result[0], 'db');
-    }
+    
 
     if(isset($_GET['athlete'])) {
         $athleteName = $_GET['athlete'];
 
     }
 
-    if($activity != null && isset($_GET['update']) && $_GET['update'] == true) {
-        $activity->determineSplitType();
-        // $activity->determineActivityType();
-        $activity->findSegments();
-        $activity->determineSurface();
-        $activity->calculateElevationGain();
-        $activity->calculateVo2max();
-        $activity->computePercentageHilly();
-        $activity->findClimbs();
-        $activity->calculateClimbScore();
-        $db->updateActivity($activity);
-    } else if($activity != null && isset($_GET['writeData']) && $_GET['writeData'] == true) {
-        
-        
-        // chmod("output/".$athleteName, 0777);
-        if(!is_dir("output/".$athleteName)) {
-            mkdir("output/".$athleteName, 0777);
+    if(!isset($_GET['update'])) {
+        $result = $db->query('SELECT * FROM activity WHERE strava_id = '.$_GET['strava_id']);
+        if(!empty($result)) {
+
+            $activity = new Activity($result[0], 'db', null, false);
         }
+    } else if(isset($_GET['update']) && $_GET['update'] == true) {
+        $fileWriter = new FileWriter($athleteName);
+        $token = $db->query('SELECT athlete.token FROM athlete, activity WHERE activity.strava_id =' . $_GET['strava_id']. 'AND activity.athlete_id = athlete.strava_id');
+
+        if (!empty($token)) {
+            $app->createStravaApi($token[0]['token']);
+            $api = $app->getApi();
+            $stravaActivity = $api->getActivity($_GET['strava_id']);
+
+            $rawStream = $api->getStream($_GET['strava_id'], "distance,altitude,latlng,time,velocity_smooth");
+            $activity = new Activity($stravaActivity, 'strava', $rawStream, false, true);
+            // $activity->determineSurface();
+            $db->updateActivity($activity);
+        }
+        
+    } 
+    if($activity != null && isset($_GET['writeData']) && $_GET['writeData'] == true) {
         
         $fileWriter = new FileWriter($athleteName);
         $fileWriter->writeControlData($activity->rawDataPoints, 'original');
@@ -60,8 +63,8 @@ if (isset($_GET['strava_id'])) {
 <!DOCTYPE html>
 <html>
     <head>
-
-    </head>
+        <meta charset="UTF-8">
+    </head> 
     <body>
     <div style="width: 80%; height: 80%; margin: 5% auto">
     

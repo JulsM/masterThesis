@@ -79,7 +79,7 @@ class StravaApiClient {
         return $returnActivity;
     }
 
-    public function getActivty($id)
+    public function getActivity($id)
     {
 
         try {

@@ -31,7 +31,7 @@ class Config {
 	static $evenSplitThreshold = 2; // sec
 
 	## Intervals
-	static $intervalTrainingPercent = 0.8; // 120 %
+	static $intervalTrainingPercent = 0.9; // 120 %
 
 	## athlete activities
 	static $weeksIntoPast = -4; //weeks

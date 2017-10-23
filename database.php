@@ -70,7 +70,7 @@ class Db
     {
         $timestamp = date('Y-m-d H:i:s e');
         try {
-            $statement = "UPDATE athlete SET update_timestamp = '".$timestamp."', weekly_mileage = ".$athlete->weeklyMileage.", average_training_pace = ".$athlete->averageTrainingPace.", average_race_pace = ".$athlete->averageRacePace." WHERE strava_id = ".$athlete->id.";";
+            $statement = "UPDATE athlete SET update_timestamp = '".$timestamp."', weekly_mileage = ".$athlete->weeklyMileage.", average_training_pace = ".$athlete->averageTrainingPace.", average_race_pace = ".$athlete->averageRacePace.", average_elevation_gain = ".$athlete->averageElevationGain.", average_percentage_hilly = ".$athlete->averagePercentageHilly." WHERE strava_id = ".$athlete->id.";";
             
             $result = pg_query($this->connection, $statement);
             
@@ -107,7 +107,7 @@ class Db
 
     public function getActivities($athleteId, $after) {
         // echo $after;
-        $query = 'SELECT * FROM activity WHERE athlete_id =' . $athleteId.' AND activity_timestamp >= \''.$after.'\' ORDER BY activity_timestamp desc';
+        $query = 'SELECT * FROM activity WHERE athlete_id =' . $athleteId.' AND activity_timestamp >= \''.$after.'\' ORDER BY activity_timestamp';
         $result = $this->query($query);
         if (empty($result)) {
             return null;

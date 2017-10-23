@@ -42,15 +42,15 @@ class Activity {
 
 	public $splitType; 
 
-	public $writeFiles = false;
+	public $writeFiles;
 
 
 
 
 
-	public function __construct($data, $type, $rawStream=null) {
-		global $fileWriter;
+	public function __construct($data, $type, $rawStream=null, $summary = true, $writeFiles = false) {
 		if($type == 'strava') {
+			$this->writeFiles = $writeFiles;
 			$this->id = $data['id'];
 			$this->date = $data['start_date'];
 			$this->name = $data['name'];
@@ -69,7 +69,7 @@ class Activity {
 	   		$this->computePercentageHilly();
 	   		$this->findClimbs();
 	   		$this->calculateClimbScore();
-	   		// $this->determineSurface();
+	   		
 	   	} else {
 	   		$this->id = $data['strava_id'];
 			$this->date = $data['activity_timestamp'];
@@ -79,7 +79,11 @@ class Activity {
 			$this->averageSpeed = $data['average_speed'];
 			$this->rawStream = null;
 			$this->rawStravaActivity = null;
-			$this->rawDataPoints = unserialize($data['serialized_raw_data_points']);
+			if($summary) {
+				$this->rawDataPoints = null;
+			} else {
+				$this->rawDataPoints = unserialize($data['serialized_raw_data_points']);
+			}
 			$this->segments = unserialize($data['serialized_segments']);
 			$this->elevationGain = $data['elevation_gain'];
 			$this->elevationLoss = $data['elevation_loss'];
@@ -230,26 +234,39 @@ class Activity {
 	}
 
 	public function determineActivityType() {
+		global $db;
+		$average = $db->query('SELECT athlete.average_training_pace FROM athlete, activity WHERE activity.strava_id =' . $this->id. 'AND activity.athlete_id = athlete.strava_id');
+
+        if (!empty($average)) {
+        	if($average[0]['average_training_pace'] == 0) {
+        		$averageTrainingPace = 300;
+        		
+        	} else {
+        		$averageTrainingPace = round(1000/ $average[0]['average_training_pace']);
+        	}
+        	
+
+        }
 		
-		$averageTrainingPace = 270;
+		
 		if($this->rawStravaActivity['workout_type'] == 1) {
 			$this->activityType = 'race';
 		} else if($this->rawStravaActivity['workout_type'] == 2) {
 			$this->activityType = 'long run';
 		} else if($this->rawStravaActivity['workout_type'] == 3) {
 
-			if($this->isActivityInterval()){
+			if($this->isActivityInterval($averageTrainingPace)){
 				$this->activityType = 'speedwork';
 			} else {
 				$this->activityType = 'base training';
 			}
 
 		} else if($this->rawStravaActivity['workout_type'] == 0) {
-			if(($this->distance > 4900 || $this->distance < 5300 || $this->distance > 9900 || $this->distance < 10300 || $this->distance > 20000 || $this->distance < 21500 || $this->distance > 41000 || $this->distance < 43000) && 1000 / $this->averageSpeed < $averageTrainingPace - 20) {
+			if((($this->distance > 4900 && $this->distance < 5300) || ($this->distance > 9900 && $this->distance < 10300) || ($this->distance > 20000 && $this->distance < 21500) || ($this->distance > 41000 && $this->distance < 43000)) && 1000 / $this->averageSpeed < $averageTrainingPace - 20) {
 				$this->activityType = 'race';
-			} else if($this->distance > 15000 && 1000 / $this->averageSpeed > $averageTrainingPace - 20) {
+			} else if($this->distance > 17000 && 1000 / $this->averageSpeed > $averageTrainingPace - 20) {
 				$this->activityType = 'long run';
-			} else if($this->isActivityInterval()){
+			} else if($this->isActivityInterval($averageTrainingPace)){
 				$this->activityType = 'speedwork';
 			} else {
 				$this->activityType = 'base training';
@@ -257,9 +274,8 @@ class Activity {
 		}
 	}
 
-	public function isActivityInterval() {
+	public function isActivityInterval($averageTrainingSpeed) {
 		global $fileWriter;
-		$averageTrainingSpeed = 270;
 		$intervalProbabilties = [];
 		$velocity = $this->rawStream[4]['data'];
 		$distance = $this->rawStream[2]['data'];
@@ -269,13 +285,13 @@ class Activity {
 		for($i = 0; $i < count($sma); $i++) {
 			$tuple[] = array($distance[$i], $sma[$i]);
 		}
-		$rdpSMA = RDP::RamerDouglasPeucker2d($tuple, 1);
+		$rdpSMA = RDP::RamerDouglasPeucker2d($tuple, 0.8);
 
-		$maxSpeed = 1000 / max(array_column($rdpSMA, 1));
+		// $maxSpeed = 1000 / max(array_column($rdpSMA, 1));
 		$index = 0;
 		$sum = 0;
-		for($i = 0; $i < count($rdpSMA); $i++) {
-			$mpers = $rdpSMA[$i][1];
+		for($i = 0; $i < count($velocity); $i++) {
+			$mpers = $velocity[$i];
 			if($mpers > $this->averageSpeed) {
 				$sum+= $mpers;
 				$index++;
@@ -306,10 +322,10 @@ class Activity {
 						$intervalProbabilties[] = 0.9;
 					} else if($intervalLength >= 250) {
 						$intervalProbabilties[] = 0.8;
-					} else if($intervalLength >= 90) {
-						$intervalProbabilties[] = 0.51;
+					} else if($intervalLength >= 80) {
+						$intervalProbabilties[] = 0.75;
 					} else {
-						$intervalProbabilties[] = 0.3;
+						$intervalProbabilties[] = 0.45;
 					}
 					// echo 'length '.$intervalLength;
 					$intervalLength = 0;
@@ -324,8 +340,9 @@ class Activity {
 		}
 
 		// echo ' max speed '.$maxSpeed;
-		// echo ' mean positive '. $meanPositiveSpeed;
-		// echo ' average '.(1000 / $this->averageSpeed);
+		// echo ' mean positive speed '. $meanPositiveSpeed;
+		// echo ' average training pace '. $averageTrainingSpeed;
+		// echo ' average activity speed '.(1000 / $this->averageSpeed);
 		// print_r($intervalProbabilties);
 		$prob = 0;
 		if(count($intervalProbabilties) > 0) {
@@ -400,7 +417,7 @@ class Activity {
 
 	public static function downloadNewActivities($athleteId, $token) {
 		global $db, $app;
-		echo 'load activities';
+		// echo 'load activities';
 		$dateInPast = date('Y-m-d H:i:s e',strtotime(Config::$maxActivityAgo.' years'));
         // echo $dateInPast.' ';
         $query = 'SELECT activity_timestamp FROM activity WHERE athlete_id =' . $athleteId.' AND activity_timestamp > \''.$dateInPast.'\' ORDER BY "activity_timestamp" desc LIMIT 1';
@@ -429,7 +446,7 @@ class Activity {
 
 	public static function loadActivitiesDb($athleteId) {
 		global $db;
-		echo 'load activities db';
+		// echo 'load activities db';
 		$dateInPast = date('Y-m-d H:i:s e',strtotime(Config::$maxActivityAgo.' years'));
         $result = $db->getActivities($athleteId, $dateInPast);
 
