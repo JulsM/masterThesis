@@ -25,6 +25,8 @@ class Athlete {
 
 	public $tapering; //todo
 
+	public $xWeekSummary;
+
 	
 
 
@@ -42,6 +44,7 @@ class Athlete {
 			$this->averageTrainingPace = 0;
 			$this->averageElevationGain = 0;
 			$this->averagePercentageHilly = 0;
+			$this->xWeekSummary = new XWeekSummary();
 		} else {
 			$this->id = $athlete['strava_id'];
 			$this->token = $athlete['token'];
@@ -52,6 +55,7 @@ class Athlete {
 			$this->averageRacePace = $athlete['average_race_pace'];
 			$this->averageElevationGain = $athlete['average_elevation_gain'];
 			$this->averagePercentageHilly = $athlete['average_percentage_hilly'];
+			$this->xWeekSummary = unserialize($athlete['serialized_x_week_summary']);
 			// $this->activities = Activity::loadActivities($this->id);
 		}
 	}
@@ -96,7 +100,6 @@ class Athlete {
 		}
 		
 		// echo $mileage;
-		// echo date('d.m.y', strtotime(Config::$weeksIntoPast));
 
 	}
 
@@ -120,8 +123,82 @@ class Athlete {
 		if($hilly > 0) {
 			$this->averagePercentageHilly = $hilly / count($this->activities);
 		}
-		
+	}
 
+	public function updateXWeekSummary() {
+		global $db;
+		$xWeeksDate = strtotime('-'.Config::$XWeeks.' weeks');
+		$activities = Activity::getActivitiesAfter($this->activities, $xWeeksDate);
+
+		$sumMileage = 0;
+		$sumElevation = 0;
+		$numRaces = 0;
+		$numLongRuns = 0;
+		$numSpeedWork = 0;
+		$longRunSumDist = 0;
+		$speedworkSumVo2max = 0;
+		$raceSumVo2max = 0;
+		$sumVo2max = 0;
+		$sumTrainingPace = 0;
+		foreach ($activities as $ac) {
+			$sumMileage+= $ac->distance;
+			$sumElevation+= $ac->elevationGain;
+			$sumVo2max += $ac->vo2Max;
+			if($ac->activityType == 'race') {
+				$numRaces++;
+				$raceSumVo2max += $ac->vo2Max;
+			} else if($ac->activityType == 'long run') {
+				$numLongRuns++;
+				$longRunSumDist += $ac->distance;
+			} else if($ac->activityType == 'speedwork') {
+				$numSpeedWork++;
+				$speedworkSumVo2max += $ac->vo2Max;
+			}
+			if($ac->activityType != 'race') {
+				$sumTrainingPace += $ac->averageSpeed;
+			}
+
+		}
+
+		$weeklyMileage = $sumMileage / Config::$XWeeks;
+		$weeklyElevation = $sumElevation / Config::$XWeeks;
+		$longRunAvgDist = 0;
+		$avgRaceVo2Max = 0;
+		$avgSpeedworkVo2Max = 0;
+		$avgVo2Max = 0;
+		$avgTrainingPace = 0;
+		$avgElevation = 0;
+		if($numLongRuns > 0) {
+			$longRunAvgDist = $longRunSumDist / $numLongRuns;
+		}
+		if($numRaces > 0) {
+			$avgRaceVo2Max = $raceSumVo2max / $numRaces;
+		}
+		if($numSpeedWork > 0) {
+			$avgSpeedworkVo2Max = $speedworkSumVo2max / $numSpeedWork;
+		}
+		if(count($activities) > 0) {
+			$avgVo2Max = $sumVo2max / count($activities);
+			$avgTrainingPace = $sumTrainingPace / (count($activities) - $numRaces);
+			$avgElevation = $sumElevation / count($activities);
+		}
+
+		$summaryObject = array('weeklyMileage' => $weeklyMileage, 
+								'weeklyElevation' => $weeklyElevation,
+								'numActivities' => count($activities),
+								'numRaces' => $numRaces,
+								'numLongRuns' => $numLongRuns,
+								'numSpeedWork' => $numSpeedWork,
+								'longRunAvgDist' => $longRunAvgDist,
+								'avgRaceVo2Max' => $avgRaceVo2Max,
+								'avgSpeedworkVo2Max' => $avgSpeedworkVo2Max,
+								'avgVo2Max' => $avgVo2Max,
+								'avgTrainingPace' => $avgTrainingPace,
+								'avgElevation' => $avgElevation);
+
+		$this->xWeekSummary->update($summaryObject);
+		$update = "UPDATE athlete SET serialized_x_week_summary = '".serialize($this->xWeekSummary)."' WHERE strava_id = ".$this->id;
+		$db->query($update);
 	}
 
 	public function updateAthlete() {
@@ -138,6 +215,7 @@ class Athlete {
 			$this->averageElevationGain = 0;
 			$this->averagePercentageHilly = 0;
 		}
+		$this->updateXWeekSummary();
 		
 
 		$db->updateAthlete($this);
@@ -174,6 +252,7 @@ class Athlete {
 		echo 'Weekly mileage: '.round($this->weeklyMileage/1000, 2).' km<br>';
 		echo 'Average elevation gain: '.round($this->averageElevationGain, 2).' m<br>';
 		echo 'Average percentage hilly: '.round($this->averagePercentageHilly * 100, 2).' % (flat: '.(100 - round($this->averagePercentageHilly * 100, 2)).' %)<br>';
+		$this->xWeekSummary->printSummary();
 	}
 
 }

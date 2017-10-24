@@ -3,14 +3,14 @@ import tensorflow as tf
 import itertools
 import pandas as pd
 from scipy import stats
+import matplotlib.pyplot as plt 
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
-def normalize(train, test):
-    mean, std = train.mean(), test.std()
+def normalize(train):
+    mean, std = train.mean(axis=0), train.std(axis=0)
     train = (train - mean) / std
-    test = (test - mean) / std
-    return train, test
+    return train
 
 def get_input_fn(data_set, num_epochs=None, shuffle=True):
 	return tf.estimator.inputs.pandas_input_fn(x=pd.DataFrame({k: data_set[k].values for k in FEATURES}), 
@@ -28,13 +28,21 @@ training_set = pd.read_csv(filepath, skipinitialspace=True, skiprows=1, names=CO
 test_set = pd.read_csv(filepath, skipinitialspace=True, skiprows=11, names=COLUMNS, nrows=5)
 prediction_set = pd.read_csv(filepath, skipinitialspace=True, skiprows=16, names=COLUMNS, nrows=1)
 
-stats.zscore(a)
+
+
+training_set = pd.DataFrame(stats.zscore(training_set), columns=COLUMNS);
+test_set = pd.DataFrame(stats.zscore(test_set), columns=COLUMNS);
+prediction_set = pd.DataFrame(stats.zscore(prediction_set, axis=None), columns=COLUMNS);
 
 # print(training_set)
+# y_pos = [0 for i in range(len(norm_train_set[COLUMNS[0]]))]
+# plt.scatter(training_set[COLUMNS[0]], training_set[COLUMNS[2]])
+# plt.show()
+
+# print(normalize(training_set))
 # print(test_set)
 # print(prediction_set)
 
-# feature_cols = [tf.feature_column.numeric_column("x", shape=[1])]
 feature_cols = [tf.feature_column.numeric_column(k) for k in FEATURES]
 
 
@@ -47,9 +55,6 @@ regressor.train(input_fn=get_input_fn(training_set, num_epochs=None, shuffle=Tru
 eval_metrics = regressor.evaluate(input_fn=get_input_fn(test_set, num_epochs=1, shuffle=False))
 
 print("eval metrics: %r"% eval_metrics)
-
-# loss_score = eval_metrics["loss"]
-# print("Loss: {0:f}".format(loss_score))
 
 y = regressor.predict(input_fn=get_input_fn(prediction_set, num_epochs=1, shuffle=False))
 

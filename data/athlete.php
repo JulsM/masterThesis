@@ -79,8 +79,6 @@ if (isset($_GET['strava_id'])) {
 	<?php
     
 
-    
-
     $athlete->printAthlete();
 
     echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">

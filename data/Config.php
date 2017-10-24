@@ -33,7 +33,7 @@ class Config {
 	## Intervals
 	static $intervalTrainingPercent = 0.9; // 120 %
 
-	## athlete activities
-	static $weeksIntoPast = -4; //weeks
+	## athlete summary
+	static $XWeeks = 8; //weeks
 	static $maxActivityAgo = -2; //year
 }

@@ -462,7 +462,19 @@ class Activity {
         return $returnObjects;
         
 	}
-    
+
+
+    public static function getActivitiesAfter($activities, $timestamp) {
+    	// echo date('d.m.y H:i:s',$timestamp);
+    	$return = [];
+    	for($i = 0; $i < count($activities); $i++) {
+    		if(strtotime($activities[$i]->date) >= $timestamp) {
+    			$return[] = $activities[$i];
+    		}
+    		
+    	}
+    	return $return;
+    }
 
 
 	public function printActivity() {
