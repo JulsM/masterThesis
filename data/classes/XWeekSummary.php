@@ -64,7 +64,11 @@ class XWeekSummary {
 		echo '# races: '.$this->numRaces.'<br>';
 		echo '# speedwork: '.$this->numSpeedwork.'<br>';
 		echo '# long runs: '.$this->numLongRuns.'<br>';
-		echo 'Average training pace: '.floor((1000/$this->averageTrainingPace/60)). ':'.(1000/$this->averageTrainingPace%60) .' min/km<br>';
+		$avgPace = '0:00';
+		if($this->averageTrainingPace > 0) {
+			$avgPace = floor((1000/$this->averageTrainingPace/60)). ':'.(1000/$this->averageTrainingPace%60);
+		}
+		echo 'Average training pace: '.$avgPace.' min/km<br>';
 		echo 'Long run average distance: '.round($this->longRunAverageDist/1000, 2).' km<br>';
 		echo 'Average Vo2max: '.round($this->averageVo2Max, 2).'<br>';
 		echo 'Average speedwork Vo2max: '.round($this->averageSpeedworkVo2Max, 2).'<br>';

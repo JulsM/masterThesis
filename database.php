@@ -58,7 +58,8 @@ class Db
         $timestamp = date('Y-m-d H:i:s e');
         $sucess = false;
         try {
-            $statement = "INSERT INTO athlete (strava_id, name, gender, update_timestamp, token, weekly_mileage, average_training_pace, average_race_pace) VALUES ('".$athlete->id."', '".$athlete->name."', '".$athlete->gender."', '".$timestamp."', '".$athlete->token."', '".$athlete->weeklyMileage."', '".$athlete->averageTrainingPace."', '".$athlete->averageRacePace."')";
+            $statement = "INSERT INTO athlete (strava_id, name, gender, update_timestamp, token, weekly_mileage, average_training_pace, average_race_pace, serialized_x_week_summary) VALUES ('".$athlete->id."', '".htmlspecialchars($athlete->name)."', '".$athlete->gender."', '".$timestamp."', '".$athlete->token."', '".$athlete->weeklyMileage."', '".$athlete->averageTrainingPace."', '".$athlete->averageRacePace."', '".serialize($athlete->xWeekSummary)."')";
+
             $result = pg_query($this->connection, $statement);
             
         } catch(Exception $e) {
@@ -83,7 +84,7 @@ class Db
     {
         $timestamp = date('Y-m-d H:i:s e');
         try {
-            $statement = "INSERT INTO activity (strava_id, athlete_id, name, elapsed_time, distance, average_speed, elevation_gain, elevation_loss, vo2_max, percentage_hilly, surface, activity_type, split_type, update_timestamp, climb_score, serialized_segments, serialized_climbs, activity_timestamp, serialized_raw_data_points) VALUES ('".$activity->id."', '".$athleteId."','".$activity->name."', '".$activity->elapsedTime."', '".$activity->distance."', '".$activity->averageSpeed."', '".$activity->elevationGain."', '".$activity->elevationLoss."', '".$activity->vo2Max."', '".$activity->percentageHilly."', '".$activity->surface."', '".$activity->activityType."', '".$activity->splitType."', '".$timestamp."', '".$activity->climbScore."', '".serialize($activity->segments)."', '".serialize($activity->climbs)."', '".$activity->date."', '".serialize($activity->rawDataPoints)."')";
+            $statement = "INSERT INTO activity (strava_id, athlete_id, name, elapsed_time, distance, average_speed, elevation_gain, elevation_loss, vo2_max, percentage_hilly, surface, activity_type, split_type, update_timestamp, climb_score, serialized_segments, serialized_climbs, activity_timestamp, serialized_raw_data_points) VALUES ('".$activity->id."', '".$athleteId."','".htmlspecialchars($activity->name)."', '".$activity->elapsedTime."', '".$activity->distance."', '".$activity->averageSpeed."', '".$activity->elevationGain."', '".$activity->elevationLoss."', '".$activity->vo2Max."', '".$activity->percentageHilly."', '".$activity->surface."', '".$activity->activityType."', '".$activity->splitType."', '".$timestamp."', '".$activity->climbScore."', '".serialize($activity->segments)."', '".serialize($activity->climbs)."', '".$activity->date."', '".serialize($activity->rawDataPoints)."')";
             
             $result = pg_query($this->connection, $statement);
             

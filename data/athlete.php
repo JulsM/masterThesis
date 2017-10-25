@@ -1,3 +1,11 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+    </head>
+    <body>
+    <div style="width: 80%; height: 80%; margin: 5% auto">
+    
 <?php
 include_once '../database.php';
 include_once '../StravaApiClient.php';
@@ -64,19 +72,11 @@ if (isset($_GET['strava_id'])) {
     }
 }
 // echo (memory_get_usage()/1024/1024) . "\n";
-?>
 
 
 
-<!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="utf-8">
-    </head>
-    <body>
-    <div style="width: 80%; height: 80%; margin: 5% auto">
-	
-	<?php
+
+
     
 
     $athlete->printAthlete();

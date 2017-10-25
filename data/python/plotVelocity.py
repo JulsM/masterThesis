@@ -24,8 +24,8 @@ def plotVelocity():
 	# plt.plot(velocitySMAData['distance'], velocitySMAData['velocity'], 'b', label="sma")
 	# plt.plot(velocityRDPData['distance'], velocityRDPData['velocity'], 'g', label="rdp")
 	plt.plot(velocitySMARDPData['distance'], velocitySMARDPData['velocity'], 'k', label="sma rdp")
-	plt.plot(np.array([0, velocitySMARDPData['distance'][-1:]]), np.array([1000/234,1000/234]), 'g', label="mean")
-	plt.plot(np.array([0, velocitySMARDPData['distance'][-1:]]), np.array([1000/291*1.1,1000/291*1.1]), 'y', label="training pace")
+	plt.plot(np.array([0, velocitySMARDPData['distance'][-1:]]), np.array([1000/198,1000/198]), 'g', label="mean")
+	plt.plot(np.array([0, velocitySMARDPData['distance'][-1:]]), np.array([1000/295*1.1,1000/295*1.1]), 'y', label="training pace")
 	plt.plot(np.array([0, velocitySMARDPData['distance'][-1:]]), np.array([1000/268,1000/268]), 'b', label="activity pace")
 	plt.legend(fontsize="small", loc="lower center")
 

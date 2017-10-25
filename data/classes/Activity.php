@@ -4,6 +4,8 @@ class Activity {
 
 	public $id;
 
+	public $athleteId;
+
 	public $name;
 
 	public $date;
@@ -52,6 +54,7 @@ class Activity {
 		if($type == 'strava') {
 			$this->writeFiles = $writeFiles;
 			$this->id = $data['id'];
+			$this->athleteId = $data['athlete']['id'];
 			$this->date = $data['start_date'];
 			$this->name = $data['name'];
 			$this->elapsedTime = $data['elapsed_time'];
@@ -72,6 +75,7 @@ class Activity {
 	   		
 	   	} else {
 	   		$this->id = $data['strava_id'];
+	   		$this->athleteId = $data['athlete_id'];
 			$this->date = $data['activity_timestamp'];
 			$this->name = $data['name'];
 			$this->elapsedTime = $data['elapsed_time'];
@@ -235,7 +239,7 @@ class Activity {
 
 	public function determineActivityType() {
 		global $db;
-		$average = $db->query('SELECT athlete.average_training_pace FROM athlete, activity WHERE activity.strava_id =' . $this->id. 'AND activity.athlete_id = athlete.strava_id');
+		$average = $db->query('SELECT average_training_pace FROM athlete WHERE strava_id ='.$this->athleteId);
 
         if (!empty($average)) {
         	if($average[0]['average_training_pace'] == 0) {
@@ -279,7 +283,7 @@ class Activity {
 		$intervalProbabilties = [];
 		$velocity = $this->rawStream[4]['data'];
 		$distance = $this->rawStream[2]['data'];
-		$sma = $this->simpleMovingAverage($velocity, 3);
+		$sma = $this->simpleMovingAverage($velocity, 4);
 		
 		$tuple = [];
 		for($i = 0; $i < count($sma); $i++) {
@@ -323,9 +327,9 @@ class Activity {
 					} else if($intervalLength >= 250) {
 						$intervalProbabilties[] = 0.8;
 					} else if($intervalLength >= 80) {
-						$intervalProbabilties[] = 0.75;
+						$intervalProbabilties[] = 0.70;
 					} else {
-						$intervalProbabilties[] = 0.45;
+						$intervalProbabilties[] = 0.35;
 					}
 					// echo 'length '.$intervalLength;
 					$intervalLength = 0;
@@ -344,6 +348,7 @@ class Activity {
 		// echo ' average training pace '. $averageTrainingSpeed;
 		// echo ' average activity speed '.(1000 / $this->averageSpeed);
 		// print_r($intervalProbabilties);
+
 		$prob = 0;
 		if(count($intervalProbabilties) > 0) {
 			$prob = array_sum($intervalProbabilties) / count($intervalProbabilties);
@@ -412,8 +417,22 @@ class Activity {
 			}
 		}
 		
-
 	}
+
+
+	public function calculateTSS() {
+
+
+		
+	}
+
+
+
+
+
+
+
+
 
 	public static function downloadNewActivities($athleteId, $token) {
 		global $db, $app;
@@ -480,7 +499,7 @@ class Activity {
 	public function printActivity() {
 		echo '<h3>Activity "'.$this->name.'" </h3>';
 		echo 'Date: '.date('Y-m-d H:i:s e',strtotime($this->date)).'<br>';
-		echo 'Distance: '.$this->distance.' m<br>';
+		echo 'Distance: '.round($this->distance/1000, 2).' km<br>';
 		echo 'Elapsed time: '.round(($this->elapsedTime / 60), 2).' min<br>';
 		echo 'Average speed: '.floor((1000/$this->averageSpeed/60)). ':'.(1000/$this->averageSpeed%60) .' min/km<br>';
 		echo 'Activity type: '.$this->activityType.'<br>';
