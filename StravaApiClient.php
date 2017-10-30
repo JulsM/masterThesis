@@ -56,7 +56,7 @@ class StravaApiClient {
 
         try {
 
-            $activities     = $this->client->getAthleteActivities(null, $after, 1, 20);
+            $activities     = $this->client->getAthleteActivities(null, $after, 1, Config::$numOfActivities);
             $returnActivity = [];
 
             foreach ($activities as $activity) {

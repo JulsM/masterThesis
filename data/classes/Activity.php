@@ -44,6 +44,10 @@ class Activity {
 
 	public $splitType; 
 
+	public $averageNGP;
+
+	public $tss;
+
 	public $writeFiles;
 
 
@@ -72,6 +76,8 @@ class Activity {
 	   		$this->computePercentageHilly();
 	   		$this->findClimbs();
 	   		$this->calculateClimbScore();
+	   		$this->calculateNGP();
+	   		$this->calculateTSS();
 	   		
 	   	} else {
 	   		$this->id = $data['strava_id'];
@@ -98,6 +104,8 @@ class Activity {
 			$this->surface = $data['surface'];
 			$this->activityType = $data['activity_type'];
 			$this->splitType = $data['split_type'];
+			$this->averageNGP = $data['average_ngp'];
+			$this->tss = $data['training_stress_score'];
 	   	}
     
     	
@@ -108,6 +116,7 @@ class Activity {
 	    $timeArray   = $stream[1]['data'];
 	    $distanceArray  = $stream[2]['data'];
 	    $stravaElevation = $stream[3]['data'];
+	    $velocityArray = $this->rawStream[4]['data'];
 	    ### get google elevation data
 	    $googleClient = new GoogleElevationClient();
 		foreach ($latlongArray as $coord) {
@@ -122,9 +131,11 @@ class Activity {
 	    				   'dist' => $distanceArray[$i],
 	    				   'alt' => $googleElevation[$i]->elevation,
 	    				   'stravaAlt' => $stravaElevation[$i],
-	    				   'time' => $timeArray[$i]);
+	    				   'time' => $timeArray[$i],
+	    				   'velocity' => $velocityArray[$i]);
 	    	$dataPoints[] = new DataPoint($param);
 	    }
+	    $dataPoints = DataPoint::calculateGrade($dataPoints);
 	    return $dataPoints;
 	}
 
@@ -283,7 +294,7 @@ class Activity {
 		$intervalProbabilties = [];
 		$velocity = $this->rawStream[4]['data'];
 		$distance = $this->rawStream[2]['data'];
-		$sma = $this->simpleMovingAverage($velocity, 4);
+		$sma = $this->simpleMovingAverage($velocity, 3);
 		
 		$tuple = [];
 		for($i = 0; $i < count($sma); $i++) {
@@ -364,24 +375,7 @@ class Activity {
 		return $prob > 0.5;
 	}
 
-    public function simpleMovingAverage($numbers, $n) {
-        $m   = count($numbers);
-        $SMA = [];
-        // Counters
-        $new       = $n; // New value comes into the sum
-        $drop      = 0;  // Old value drops out
-        $yesterday = 0;  // Yesterday's SMA
-        // Base case: initial average
-        $SMA[] = array_sum(array_slice($numbers, 0, $n)) / $n;
-        // Calculating successive values: New value comes in; old value drops out
-        while ($new < $m) {
-            $SMA[] = $SMA[$yesterday] + ($numbers[$new] / $n) - ($numbers[$drop] / $n);
-            $drop++;
-            $yesterday++;
-            $new++;
-        }
-        return $SMA;
-    }
+    
 
     public function determineSplitType() {
 
@@ -421,10 +415,197 @@ class Activity {
 
 
 	public function calculateTSS() {
+		// global $fileWriter;
 
+		$FTP = $this->getFTP();
 
-		
+		$intensityFactor = $this->averageNGP / $FTP;
+
+		$this->tss = ($this->elapsedTime * $intensityFactor * $intensityFactor) / 3600 * 100;
+			
+
+		// $list = [];
+		// for($i = -0.3; $i <= 0.3; $i += 0.01) {
+		// 	$list[] = array($i, $this->getEnergyCost($i), $this->getEnergyCostAdjusted($i));
+		// }
+		// $fileWriter->writeCsv($list, 'minetti');
+
 	}
+
+	private function getFTP() {
+		global $db;
+
+		$weeksAfter = date('Y-m-d H:i:s e',strtotime($this->date.' -'.Config::$FTPWeeks.' weeks'));
+		$ftp = 0;
+		
+
+		// avg race pace 10k faster than 45 min
+		$query = 'SELECT * FROM activity WHERE athlete_id =' . $this->athleteId.' AND activity_timestamp >= \''.$weeksAfter.'\' AND activity_type = \'race\' AND distance BETWEEN 9800 AND 10300 ORDER BY elapsed_time LIMIT 1';
+        $result10k = $db->query($query);
+        if(!empty($result10k)) {
+        	$best10kPace = $result10k[0]['average_speed'];
+        	if(!$best10kPace > 3.704) { // 3.704 m/s = 4:30 min/km
+	        	$ftp = $best10kPace;
+	        }
+        }
+
+        if($ftp == 0) { // race 10k and 21k
+        	if(!empty($result10k)) {
+	        	$query = 'SELECT * FROM activity WHERE athlete_id =' . $this->athleteId.' AND activity_timestamp >= \''.$weeksAfter.'\' AND activity_type = \'race\' AND distance BETWEEN 20800 AND 21300 ORDER BY elapsed_time LIMIT 1';
+	        	$result = $db->query($query);
+	        	if(!empty($result)) {
+	        		$best21kPace = $result[0]['average_speed'];
+	        		$pred1HourDist10k = pow((3600 / $result10k[0]['elapsed_time']), 50/53) * ($result10k[0]['distance']); // T2 = T1 * (D2/D1) ^ 1.06 , Riegels Formula
+	        		$pred1HourDist21k = pow((3600 / $result[0]['elapsed_time']), 50/53) * ($result[0]['distance']); 
+	        		$pred1hourPace = ($pred1HourDist10k + $pred1HourDist21k) / 2 / 3600;
+	        		$ftp = $pred1hourPace;
+	        	}
+	        }
+        }
+
+
+        if($ftp == 0) { // race around 45 - 60 min
+        	$query = 'SELECT * FROM activity WHERE athlete_id =' . $this->athleteId.' AND activity_timestamp >= \''.$weeksAfter.'\' AND activity_type = \'race\' AND distance > 10300 AND elapsed_time BETWEEN 2700 AND 3600 ORDER BY elapsed_time LIMIT 1';
+        	$result = $db->query($query);
+        	if(!empty($result)) {
+        		$pred1HourDist = pow((3600 / $result[0]['elapsed_time']), 50/53) * ($result[0]['distance']); 
+        		$pred1hourPace = $pred1HourDist / 3600;
+        		$ftp = $pred1hourPace;
+        	}
+
+        }
+		
+		if($ftp == 0) { // training around 60 min best time
+        	$query = 'SELECT * FROM activity WHERE athlete_id =' . $this->athleteId.' AND activity_timestamp >= \''.$weeksAfter.'\' AND activity_type != \'race\' AND distance > 10300 AND elapsed_time > 3000 ORDER BY average_speed desc LIMIT 1';
+        	$result = $db->query($query);
+        	if(!empty($result)) {
+        		$pred1HourDist = pow((3600 / $result[0]['elapsed_time']), 50/53) * ($result[0]['distance']); 
+        		$pred1hourPace = $pred1HourDist / 3600;
+        		$ftp = $pred1hourPace;
+        	}
+
+        }
+
+        if($ftp == 0) {
+        	$ftp = 300; // 5:00
+        }
+        return $ftp;
+	}
+
+	private function calculateNGP() {
+		//smooth grade in DataPoints
+		$gradeData = array_map(function($p) {return $p->grade;},$this->rawDataPoints);
+		$smoothedGrade = $this->simpleMovingAverage($gradeData, 7);
+		for($i = 0; $i < count($this->rawDataPoints); $i++) {
+			$this->rawDataPoints[$i]->grade = $smoothedGrade[$i];
+		}
+
+		// get energy cost for grades
+		$ngp = [];
+		foreach ($this->rawDataPoints as $p) {
+			$p->ngp = $p->velocity * $this->getEnergyCost(round($p->grade/100, 6));
+			$ngp[] = $p->ngp;
+		}
+
+		// give fast velocities a weightening
+		$lastSegTime = 0;
+		$ngpSegments = [];
+		$segSum = 0;
+		$pointCounter = 0;
+		foreach ($this->rawDataPoints as $p) {
+			if($p->time - $lastSegTime < 30) {
+				$segSum += $p->ngp;
+				$pointCounter++;
+			} else {
+				$lastSegTime = $p->time;
+				$ngpSegments[] = pow($segSum / $pointCounter, 4);
+				$segSum = $p->ngp;
+				$pointCounter = 1;
+			}
+		}
+		if($pointCounter > 0) {
+			$ngpSegments[] = pow($segSum / $pointCounter, 4) * 2;
+		}
+		$averageNGP = pow(array_sum($ngpSegments) / count($ngpSegments), 1/4);
+
+
+		// echo 1000/ $averageNGP . ' ';
+
+		// echo 1000/(array_sum($ngp)/count($ngp));
+
+		// $list = [];
+		// $index = 0;
+		// foreach ($this->rawDataPoints as $point) {
+		// 	$list[] = array($point->distance, $point->altitude, $point->grade, $smoothedGrade[$index], $point->velocity, $point->ngp, $point->velocity * $this->getEnergyCostAdjusted($point->grade/100));
+		// 	$index++;
+		// }
+		// $fileWriter->writeCsv($list, 'tss');
+
+		// $stravaGrade = $strava[1]['data'];
+		// $stravaDistance = $strava[0]['data'];
+		// $stravaVelocity = $strava[2]['data'];
+
+		// $ngp = [];
+		// for($i = 0; $i < count($stravaDistance); $i++) {
+		// 	$ngp[] = $this->getNGP($stravaVelocity[$i], $stravaGrade[$i]);
+		// }
+		// echo 1000/(array_sum($ngp)/count($ngp));
+		// $list = [];
+		// for($i = 0; $i < count($stravaDistance); $i++) {
+		// 	$list[] = array($stravaDistance[$i], $stravaGrade[$i], $ngp[$i], $stravaVelocity[$i]);
+		// }
+		// $fileWriter->writeCsv($list, 'stravaNGP');
+
+		$this->averageNGP = $averageNGP;
+
+	}
+
+
+	// Minetti function
+	private function getEnergyCost($g) {
+        // return (155.4 * pow($g, 5)  - 30.4 * pow($g, 4) - 43.3 * pow($g, 3) + 46.3 * pow($g, 2) + (19.5 * $g) + 3.6) / 3.6; 
+        return (350 * pow($g, 5)  - 40 * pow($g, 4) - 36 * pow($g, 3) + 65 * pow($g, 2) + (11.8 * $g) + 3.6) / 3.6; 
+    }
+
+    private function getEnergyCostAdjusted($g) {
+        return (350 * pow($g, 5)  - 40 * pow($g, 4) - 36 * pow($g, 3) + 65 * pow($g, 2) + (11.8 * $g) + 3.6) / 3.6; 
+    }
+
+	private function simpleMovingAverage($numbers, $n) {
+        $m   = count($numbers);
+        $SMA = [];
+
+        
+        // Counters
+        $new       = $n; // New value comes into the sum
+        $drop      = 0;  // Old value drops out
+        $yesterday = 0;  // Yesterday's SMA
+        // Base case: initial average
+        $SMA[] = array_sum(array_slice($numbers, 0, $n)) / $n;
+        // Calculating successive values: New value comes in; old value drops out
+        while ($new < $m) {
+            $SMA[] = $SMA[$yesterday] + ($numbers[$new] / $n) - ($numbers[$drop] / $n);
+            $drop++;
+            $yesterday++;
+            $new++;
+        }
+
+        //fill with border values
+        $i = 0;
+        while($i < floor($n / 2)) {
+        	$add[] = $numbers[$i];
+        	$i++;
+        }
+        $SMA = array_merge($add, $SMA);
+        //fill with end values;
+        $i = floor($n / 2);
+        while($i > 0) {
+        	$SMA[] = $numbers[$m - $i];
+        	$i--;
+        }
+        // echo count($SMA). count($numbers);
+        return $SMA;
+    }
 
 
 
@@ -455,7 +636,7 @@ class Activity {
         	$rawStream = $api->getStream($ac['id'], "distance,altitude,latlng,time,velocity_smooth");
         	$activity = new Activity($ac, 'strava', $rawStream);
         	$returnObjects[] = $activity;
-        	$activity->printActivity();
+        	// $activity->printActivity();
         	$db->saveActivity($activity, $athleteId);
         }
 
@@ -501,12 +682,19 @@ class Activity {
 		echo 'Date: '.date('Y-m-d H:i:s e',strtotime($this->date)).'<br>';
 		echo 'Distance: '.round($this->distance/1000, 2).' km<br>';
 		echo 'Elapsed time: '.round(($this->elapsedTime / 60), 2).' min<br>';
-		echo 'Average speed: '.floor((1000/$this->averageSpeed/60)). ':'.(1000/$this->averageSpeed%60) .' min/km<br>';
+		echo 'Average pace: '.floor((1000/$this->averageSpeed/60)). ':'.(1000/$this->averageSpeed%60) .' min/km<br>';
+		if($this->averageNGP > 0) {
+			$avgNgp = floor((1000/$this->averageNGP/60)). ':'.(1000/$this->averageNGP%60);
+		} else {
+			$avgNgp = '00:00';
+		}
+		echo 'Average normalized graded pace: '.$avgNgp.' min/km<br>';
 		echo 'Activity type: '.$this->activityType.'<br>';
 		echo 'Split type: '.$this->splitType.'<br>';
 		echo 'Elevation + : '.round($this->elevationGain, 2).' m, Elevation - : '.round($this->elevationLoss, 2).' m<br>';
 		echo 'Percentage hilly: '.round($this->percentageHilly * 100, 2).' %<br>';
 		echo 'VO2max: '.round($this->vo2Max, 2).'<br>';
+		echo 'Training Stress Score: '.round($this->tss, 2).'<br>';
 		echo 'Surface: '.$this->surface.' %<br>';
 		echo '#Segments: '.count($this->segments).'<br>';
 		echo '#Climbs: '.count($this->climbs).'<br>';

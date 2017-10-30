@@ -73,12 +73,6 @@ if (isset($_GET['strava_id'])) {
 }
 // echo (memory_get_usage()/1024/1024) . "\n";
 
-
-
-
-
-    
-
     $athlete->printAthlete();
 
     echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">

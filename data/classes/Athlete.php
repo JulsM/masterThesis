@@ -21,9 +21,9 @@ class Athlete {
 
 	public $averageElevationGain;
 
-	public $fitness; //todo
+	public $atl;
 
-	public $tapering; //todo
+	public $ctl; 
 
 	public $xWeekSummary;
 
@@ -45,6 +45,7 @@ class Athlete {
 			$this->averageElevationGain = 0;
 			$this->averagePercentageHilly = 0;
 			$this->xWeekSummary = new XWeekSummary();
+			$this->atl = $this->ctl = 0;
 		} else {
 			$this->id = $athlete['strava_id'];
 			$this->token = $athlete['token'];
@@ -56,6 +57,8 @@ class Athlete {
 			$this->averageElevationGain = $athlete['average_elevation_gain'];
 			$this->averagePercentageHilly = $athlete['average_percentage_hilly'];
 			$this->xWeekSummary = unserialize($athlete['serialized_x_week_summary']);
+			$this->atl = $athlete['acute_training_load'];
+			$this->ctl = $athlete['chronic_training_load'];
 			// $this->activities = Activity::loadActivities($this->id);
 		}
 	}
@@ -123,6 +126,60 @@ class Athlete {
 		if($hilly > 0) {
 			$this->averagePercentageHilly = $hilly / count($this->activities);
 		}
+	}
+
+	public function calculateATL() {
+		global $db;
+		$days = 7;
+		$dateInPast = date('Y-m-d H:i:s e',strtotime('-'.$days.' days'));
+        $result = $db->getActivities($this->id, $dateInPast);
+
+        $activities = [];
+        if(count($result) > 0) {
+	        foreach ($result as $ac) {
+	        	$activity = new Activity($ac, 'db');
+	        	$activities[] = $activity;
+	        }
+	    }
+
+	    $lambda = 2 / ($days + 1);
+	    $atl = 50;
+	    if(count($activities) > 2) { // pick start value
+	    	$atl = ($activities[0]->tss + $activities[1]->tss) / 2;
+	    }
+	    for ($i = 0; $i < count($activities); $i++) {
+            $atl = $activities[$i]->tss * $lambda + ((1 - $lambda) * $atl);
+            // echo $atl . ' '.$activities[$i]->tss.' ';
+        }
+        $this->atl = $atl;
+
+	}
+
+	public function calculateCTL() {
+		global $db;
+		$days = 42;
+		$dateInPast = date('Y-m-d H:i:s e',strtotime('-'.$days.' days'));
+        $result = $db->getActivities($this->id, $dateInPast);
+
+        $activities = [];
+        if(count($result) > 0) {
+	        foreach ($result as $ac) {
+	        	$activity = new Activity($ac, 'db');
+	        	$activities[] = $activity;
+	        }
+	    }
+
+	    $lambda = 2 / ($days + 1);
+	    $ctl = 50;
+	    if(count($activities) > 5) { // pick start value
+	    	$ctl = ($activities[0]->tss + $activities[1]->tss + $activities[2]->tss + $activities[3]->tss + $activities[4]->tss) / 5;
+	    }
+	    for ($i = 0; $i < count($activities); $i++) {
+            $ctl = $activities[$i]->tss * $lambda + ((1 - $lambda) * $ctl);
+            // echo $ctl . ' '.$activities[$i]->tss.' ';
+        }
+        $this->ctl = $ctl;
+		
 	}
 
 	public function updateXWeekSummary() {
@@ -208,12 +265,16 @@ class Athlete {
 			$this->calculateAveragePaces();
 			$this->calculateAverageElevation();
 			$this->calculateAverageHilly();
+			$this->calculateATL();
+			$this->calculateCTL();
 		} else {
 			$this->weeklyMileage = 0;
 			$this->averageRacePace = 0;
 			$this->averageTrainingPace = 0;
 			$this->averageElevationGain = 0;
 			$this->averagePercentageHilly = 0;
+			$this->atl = 0;
+			$this->ctl = 0;
 		}
 		$this->updateXWeekSummary();
 		
@@ -252,6 +313,9 @@ class Athlete {
 		echo 'Weekly mileage: '.round($this->weeklyMileage/1000, 2).' km<br>';
 		echo 'Average elevation gain: '.round($this->averageElevationGain, 2).' m<br>';
 		echo 'Average percentage hilly: '.round($this->averagePercentageHilly * 100, 2).' % (flat: '.(100 - round($this->averagePercentageHilly * 100, 2)).' %)<br>';
+		echo 'Acute Traing Load: '.round($this->atl, 2).' <br>';
+		echo 'Chronic Training Load: '.round($this->ctl, 2).' <br>';
+		echo 'Training Stress Balance: '.round($this->ctl - $this->atl, 2).' <br>';
 		$this->xWeekSummary->printSummary();
 	}
 

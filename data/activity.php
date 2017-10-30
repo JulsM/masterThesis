@@ -35,6 +35,9 @@ if (isset($_GET['strava_id'])) {
             $activity = new Activity($stravaActivity, 'strava', $rawStream, false, true);
             // $activity->determineSurface();
             $db->updateActivity($activity);
+
+            // $gradeSmooth = $api->getStream($_GET['strava_id'], "grade_smooth,velocity_smooth");
+            
         }
         
     } 
