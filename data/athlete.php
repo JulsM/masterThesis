@@ -111,15 +111,17 @@ if (isset($_GET['strava_id'])) {
                 echo '<div style="color:green">';
             } else if($ac->activityType == 'race') {
                 echo '<div style="color:red">';
+            } else if($ac->activityType == 'long run') {
+                echo '<div style="color:#8A0808">';
             } else {
                 echo '<div>';
             }
-    	    echo $num.'. ' . $ac->name . ', date: '.$ac->date.', distance: ' . round($ac->distance / 1000, 2) .' km, surface: '.$ac->surface;
+    	    echo $num.'. ' . $ac->name . ', date: '.$ac->date.', distance: ' . round($ac->distance / 1000, 2) .' km, surface: '.$ac->surface.', type: '.$ac->activityType.'</div>';
             echo '<form action="activity.php" method="get">
                     <input type="hidden" name="strava_id" value="'.$ac->id.'">
                     <input type="hidden" name="athlete" value="'.$athlete->name.'">
                     <input type="submit" value="Show">
-                </form>'.' <br><br> </div>';
+                </form>'.' <br><br> ';
     	    $num++;
     	}
     }

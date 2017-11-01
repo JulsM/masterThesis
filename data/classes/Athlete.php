@@ -313,7 +313,7 @@ class Athlete {
 		echo 'Weekly mileage: '.round($this->weeklyMileage/1000, 2).' km<br>';
 		echo 'Average elevation gain: '.round($this->averageElevationGain, 2).' m<br>';
 		echo 'Average percentage hilly: '.round($this->averagePercentageHilly * 100, 2).' % (flat: '.(100 - round($this->averagePercentageHilly * 100, 2)).' %)<br>';
-		echo 'Acute Traing Load: '.round($this->atl, 2).' <br>';
+		echo 'Acute Training Load: '.round($this->atl, 2).' <br>';
 		echo 'Chronic Training Load: '.round($this->ctl, 2).' <br>';
 		echo 'Training Stress Balance: '.round($this->ctl - $this->atl, 2).' <br>';
 		$this->xWeekSummary->printSummary();

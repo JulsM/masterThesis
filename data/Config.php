@@ -4,7 +4,7 @@ class Config {
 
 
 	## API
-	static $numOfActivities = 8;
+	static $numOfActivities = 12;
 
 	## Clean Google data
 	static $cleanMinDist = 5; // meters
@@ -34,6 +34,10 @@ class Config {
 
 	## Intervals
 	static $intervalTrainingPercent = 0.9; // 120 %
+
+	## Long runs 
+	static $weeklyMileagePercentHigh = 1.3; //130 %
+	static $weeklyMileagePercentLow = 1.2; // 120%,  over 25 km per run
 
 	## athlete summary
 	static $XWeeks = 8; //weeks

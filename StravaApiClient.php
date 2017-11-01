@@ -60,7 +60,7 @@ class StravaApiClient {
             $returnActivity = [];
 
             foreach ($activities as $activity) {
-                if (strtolower($activity['type']) == 'run') {
+                if (strtolower($activity['type']) == 'run' && !empty($activity['start_latitude'])) {
                     $returnActivity[] = $this->client->getActivity($activity['id']);
                 }
             }

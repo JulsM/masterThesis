@@ -149,11 +149,11 @@ class FileWriter {
 	public function writeRaceFeatures($activities) {	
 		
 	    $list = [];
-	    $list[] = array('distance', 'elevation', 'finishTime');
+	    $list[] = array('distance', 'elevation', 'vo2max', 'tss', 'finishTime');
 		for($i = 0; $i < count($activities); $i++) {
 			$ac = $activities[$i];
 			if($ac->activityType == 'race') {
-		    	$list[] = array($ac->distance, $ac->elevationGain, $ac->elapsedTime);
+		    	$list[] = array($ac->distance, $ac->elevationGain, $ac->vo2Max, $ac->tss, $ac->elapsedTime);
 		    }
 		}
 		$this->writeCsv($list, 'raceFeatures');

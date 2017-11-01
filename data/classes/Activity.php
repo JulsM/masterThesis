@@ -259,10 +259,7 @@ class Activity {
         	} else {
         		$averageTrainingPace = round(1000/ $average[0]['average_training_pace']);
         	}
-        	
-
         }
-		
 		
 		if($this->rawStravaActivity['workout_type'] == 1) {
 			$this->activityType = 'race';
@@ -277,9 +274,10 @@ class Activity {
 			}
 
 		} else if($this->rawStravaActivity['workout_type'] == 0) {
-			if((($this->distance > 4900 && $this->distance < 5300) || ($this->distance > 9900 && $this->distance < 10300) || ($this->distance > 20000 && $this->distance < 21500) || ($this->distance > 41000 && $this->distance < 43000)) && 1000 / $this->averageSpeed < $averageTrainingPace - 20) {
+			$longRunDistance = $this->getLongRunDistance();
+			if((($this->distance > 4900 && $this->distance < 5300) || ($this->distance > 9900 && $this->distance < 10300) || ($this->distance > 20000 && $this->distance < 21500) || ($this->distance > 41000 && $this->distance < 43000)) && 1000 / $this->averageSpeed < $averageTrainingPace / 1.3) {
 				$this->activityType = 'race';
-			} else if($this->distance > 17000 && 1000 / $this->averageSpeed > $averageTrainingPace - 20) {
+			} else if($this->distance >= $longRunDistance && 1000 / $this->averageSpeed > $averageTrainingPace / 1.3) {
 				$this->activityType = 'long run';
 			} else if($this->isActivityInterval($averageTrainingPace)){
 				$this->activityType = 'speedwork';
@@ -289,69 +287,104 @@ class Activity {
 		}
 	}
 
-	public function isActivityInterval($averageTrainingSpeed) {
+	private function getLongRunDistance() {
+		global $db;
+		$longRunDistance = 17000;
+		$result = $db->query('SELECT serialized_x_week_summary FROM athlete WHERE strava_id = '.$this->athleteId);
+		if(!empty($result)) {
+			$summary = unserialize($result[0]['serialized_x_week_summary']);
+
+			if($summary->numActivities > 0) {
+				$avgDist = $summary->weeklyMileage / ($summary->numActivities / $summary->numWeeks);
+			} else {
+				$avgDist = 0;
+				$longRunDistance = 17000;
+			}
+			if($avgDist > 25000) {
+				$longRunDistance = $avgDist * Config::$weeklyMileagePercentLow;
+			} else if($avgDist > 0) {
+				$longRunDistance = $avgDist * Config::$weeklyMileagePercentHigh;
+			}
+			
+		}
+		// echo $longRunDistance;
+		return $longRunDistance;
+	}
+
+	private function isActivityInterval($averageTrainingSpeed) {
 		global $fileWriter;
 		$intervalProbabilties = [];
-		$velocity = $this->rawStream[4]['data'];
-		$distance = $this->rawStream[2]['data'];
-		$sma = $this->simpleMovingAverage($velocity, 3);
-		
-		$tuple = [];
-		for($i = 0; $i < count($sma); $i++) {
-			$tuple[] = array($distance[$i], $sma[$i]);
-		}
-		$rdpSMA = RDP::RamerDouglasPeucker2d($tuple, 0.8);
-
-		// $maxSpeed = 1000 / max(array_column($rdpSMA, 1));
-		$index = 0;
-		$sum = 0;
-		for($i = 0; $i < count($velocity); $i++) {
-			$mpers = $velocity[$i];
-			if($mpers > $this->averageSpeed) {
-				$sum+= $mpers;
-				$index++;
+		if(1000/$this->averageSpeed < $averageTrainingSpeed / 1.3 && $this->distance > 2500) {
+			$intervalProbabilties[] = 1;
+		} else if($this->distance > 2500) {
+			$velocity = $this->rawStream[4]['data'];
+			$distance = $this->rawStream[2]['data'];
+			$sma = $this->simpleMovingAverage($velocity, 3);
+			
+			$tuple = [];
+			for($i = 0; $i < count($sma); $i++) {
+				$tuple[] = array($distance[$i], $sma[$i]);
 			}
-		}
-		$meanPositiveSpeed = 1000 / ($sum / $index);
-		if($meanPositiveSpeed < $averageTrainingSpeed * Config::$intervalTrainingPercent) {
-			$intervalLength = 0;
-			$lastDist = 0;
-			for($i = 0; $i < count($rdpSMA); $i++) {
-				
-				$secPerKm = 0;
-				if($rdpSMA[$i][1] > 0) {
-					$secPerKm = 1000 / $rdpSMA[$i][1];
-				}
+			$rdpSMA = RDP::RamerDouglasPeucker2d($tuple, 0.8);
 
-				if($secPerKm < $meanPositiveSpeed) {
-					if($lastDist == 0) {
-						$lastDist = $rdpSMA[$i][0];
-					} else {
-						$length = $rdpSMA[$i][0] - $lastDist;
-						$intervalLength += $length;
-					}
-				} else if($intervalLength > 0) {
-					if($intervalLength >= 1000) {
-						$intervalProbabilties[] = 1;
-					} else if($intervalLength >= 700) {
-						$intervalProbabilties[] = 0.9;
-					} else if($intervalLength >= 250) {
-						$intervalProbabilties[] = 0.8;
-					} else if($intervalLength >= 80) {
-						$intervalProbabilties[] = 0.70;
-					} else {
-						$intervalProbabilties[] = 0.35;
-					}
-					// echo 'length '.$intervalLength;
-					$intervalLength = 0;
-					$lastDist = 0;
-				} else {
-					$lastDist = 0;
+			// $maxSpeed = 1000 / max(array_column($rdpSMA, 1));
+			$index = 0;
+			$sum = 0;
+			for($i = 0; $i < count($velocity); $i++) {
+				$mpers = $velocity[$i];
+				if($mpers > $this->averageSpeed) {
+					$sum+= $mpers;
+					$index++;
 				}
-
 			}
-		} else {
-			$intervalProbabilties[] = 0;
+			$meanPositiveSpeed = 1000 / ($sum / $index);
+			
+			
+			if($meanPositiveSpeed < $averageTrainingSpeed * Config::$intervalTrainingPercent) {
+				$intervalLength = 0;
+				$lastDist = 0;
+				for($i = 0; $i < count($rdpSMA); $i++) {
+					
+					$secPerKm = 0;
+					if($rdpSMA[$i][1] > 0) {
+						$secPerKm = 1000 / $rdpSMA[$i][1];
+					}
+
+					if($secPerKm < $meanPositiveSpeed) {
+						if($lastDist == 0) {
+							$lastDist = $rdpSMA[$i][0];
+						} else {
+							$length = $rdpSMA[$i][0] - $lastDist;
+							$intervalLength += $length;
+						}
+					} else if($intervalLength > 0) {
+						if($intervalLength >= 1000) {
+							$intervalProbabilties[] = 1;
+						} else if($intervalLength >= 700) {
+							$intervalProbabilties[] = 0.9;
+						} else if($intervalLength >= 250) {
+							$intervalProbabilties[] = 0.8;
+						} else if($intervalLength >= 80) {
+							$intervalProbabilties[] = 0.70;
+						} else {
+							$intervalProbabilties[] = 0.35;
+						}
+						// echo 'length '.$intervalLength;
+						$intervalLength = 0;
+						$lastDist = 0;
+					} else {
+						$lastDist = 0;
+					}
+
+				}
+			} else {
+				$intervalProbabilties[] = 0;
+			}
+			if($this->writeFiles) {
+				### write data in CSV 
+				$fileWriter->writeControlData(array($distance, $velocity, $rdpSMA), 'velocity');
+				###
+			}
 		}
 
 		// echo ' max speed '.$maxSpeed;
@@ -366,11 +399,7 @@ class Activity {
 		}
 		// echo 'Probabilty: '.$prob;
 		
-		if($this->writeFiles) {
-			### write data in CSV 
-			$fileWriter->writeControlData(array($distance, $velocity, $rdpSMA), 'velocity');
-			###
-		}
+		
 
 		return $prob > 0.5;
 	}

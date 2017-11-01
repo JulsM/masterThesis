@@ -7,10 +7,16 @@ import matplotlib.pyplot as plt
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
-def normalize(train):
-    mean, std = train.mean(axis=0), train.std(axis=0)
-    train = (train - mean) / std
-    return train
+def normalize(train, test):
+	label_train = train[LABEL]
+	label_test = test[LABEL]
+	mean, std = train[FEATURES].mean(axis=0), train[FEATURES].std(axis=0)
+	
+	train = (train[FEATURES] - mean) /std
+	test = (test[FEATURES] - mean) / std
+	train = pd.concat([train, label_train], axis=1)
+	test = pd.concat([test, label_test], axis=1)
+	return train, test
 
 def get_input_fn(data_set, num_epochs=None, shuffle=True):
 	return tf.estimator.inputs.pandas_input_fn(x=pd.DataFrame({k: data_set[k].values for k in FEATURES}), 
@@ -18,8 +24,8 @@ def get_input_fn(data_set, num_epochs=None, shuffle=True):
 
 train_steps = 5000
 
-COLUMNS = ["dist", "elev", "time"]
-FEATURES = ["dist", "elev"]
+COLUMNS = ["dist", "elev", "vo2max", "tss", "time"]
+FEATURES = ["dist", "elev", "vo2max", "tss"]
 LABEL = "time"
 
 filepath = "../output/raceFeatures.csv"
@@ -30,23 +36,30 @@ prediction_set = pd.read_csv(filepath, skipinitialspace=True, skiprows=16, names
 
 
 
-training_set = pd.DataFrame(stats.zscore(training_set), columns=COLUMNS);
-test_set = pd.DataFrame(stats.zscore(test_set), columns=COLUMNS);
-prediction_set = pd.DataFrame(stats.zscore(prediction_set, axis=None), columns=COLUMNS);
+
+training_set = pd.DataFrame(training_set, columns=COLUMNS)
+test_set = pd.DataFrame(test_set, columns=COLUMNS)
+prediction_set = pd.DataFrame(prediction_set, columns=COLUMNS)
+
+training_set, test_set = normalize(training_set, test_set)
 
 # print(training_set)
 # y_pos = [0 for i in range(len(norm_train_set[COLUMNS[0]]))]
 # plt.scatter(training_set[COLUMNS[0]], training_set[COLUMNS[2]])
 # plt.show()
 
-# print(normalize(training_set))
-# print(test_set)
-# print(prediction_set)
+
+
+
+
+
+
 
 feature_cols = [tf.feature_column.numeric_column(k) for k in FEATURES]
 
 
-regressor = tf.estimator.DNNRegressor(feature_columns=feature_cols,hidden_units=[10, 10])
+regressor = tf.estimator.DNNRegressor(feature_columns=feature_cols,hidden_units=[10, 10], 
+	dropout=0.5, optimizer=tf.train.AdamOptimizer(learning_rate=0.001))
 
 
 regressor.train(input_fn=get_input_fn(training_set, num_epochs=None, shuffle=True), steps=train_steps)
