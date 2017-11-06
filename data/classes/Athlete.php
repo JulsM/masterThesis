@@ -128,12 +128,13 @@ class Athlete {
 		}
 	}
 
-	public function calculateATL() {
+	public static function getATL($athleteId, $histDate=null) {
 		global $db;
+		$to = ($histDate == null ? date('Y-m-d H:i:s e',time()) : $histDate);
 		$days = 7;
-		$dateInPast = date('Y-m-d H:i:s e',strtotime('-'.$days.' days'));
-        $result = $db->getActivities($this->id, $dateInPast);
-
+		$from = date('Y-m-d H:i:s e',strtotime($to.' -'.$days.' days'));
+        $result = $db->getActivities($athleteId, $from, $to);
+        
         $activities = [];
         if(count($result) > 0) {
 	        foreach ($result as $ac) {
@@ -151,16 +152,16 @@ class Athlete {
             $atl = $activities[$i]->tss * $lambda + ((1 - $lambda) * $atl);
             // echo $atl . ' '.$activities[$i]->tss.' ';
         }
-        $this->atl = $atl;
+        return $atl;
 
 	}
 
-	public function calculateCTL() {
+	public static function getCTL($athleteId, $histDate=null) {
 		global $db;
+		$to = ($histDate == null ? date('Y-m-d H:i:s e',time()) : $histDate);
 		$days = 42;
-		$dateInPast = date('Y-m-d H:i:s e',strtotime('-'.$days.' days'));
-        $result = $db->getActivities($this->id, $dateInPast);
-
+		$from = date('Y-m-d H:i:s e',strtotime($to.' -'.$days.' days'));
+        $result = $db->getActivities($athleteId, $from, $to);
         $activities = [];
         if(count($result) > 0) {
 	        foreach ($result as $ac) {
@@ -178,7 +179,7 @@ class Athlete {
             $ctl = $activities[$i]->tss * $lambda + ((1 - $lambda) * $ctl);
             // echo $ctl . ' '.$activities[$i]->tss.' ';
         }
-        $this->ctl = $ctl;
+        return $ctl;
 		
 	}
 
@@ -265,8 +266,8 @@ class Athlete {
 			$this->calculateAveragePaces();
 			$this->calculateAverageElevation();
 			$this->calculateAverageHilly();
-			$this->calculateATL();
-			$this->calculateCTL();
+			$this->atl = Athlete::getATL($this->id);
+			$this->ctl = Athlete::getCTL($this->id);
 		} else {
 			$this->weeklyMileage = 0;
 			$this->averageRacePace = 0;
@@ -316,6 +317,11 @@ class Athlete {
 		echo 'Acute Training Load: '.round($this->atl, 2).' <br>';
 		echo 'Chronic Training Load: '.round($this->ctl, 2).' <br>';
 		echo 'Training Stress Balance: '.round($this->ctl - $this->atl, 2).' <br>';
+		$ftp = 0;
+		if(count($this->activities) > 0) {
+			$ftp = $this->activities[count($this->activities)-1]->getFTP();
+		}
+		echo 'Functional Threshold Pace: '.floor((1000/$ftp/60)). ':'.(1000/$ftp%60) .' min/km<br>';
 		$this->xWeekSummary->printSummary();
 	}
 

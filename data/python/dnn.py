@@ -24,11 +24,11 @@ def get_input_fn(data_set, num_epochs=None, shuffle=True):
 
 train_steps = 5000
 
-COLUMNS = ["dist", "elev", "vo2max", "tss", "time"]
-FEATURES = ["dist", "elev", "vo2max", "tss"]
+COLUMNS = ["dist", "elev", "avgSpeed", "hilly", "CS", "time"]
+# FEATURES = ["dist", "elev", "avgSpeed", "hilly", "CS"]
+FEATURES = ["dist"]
 LABEL = "time"
 
-filepath = "../output/raceFeatures.csv"
 
 training_set = pd.read_csv(filepath, skipinitialspace=True, skiprows=1, names=COLUMNS, nrows=10)
 test_set = pd.read_csv(filepath, skipinitialspace=True, skiprows=11, names=COLUMNS, nrows=5)
@@ -41,38 +41,61 @@ training_set = pd.DataFrame(training_set, columns=COLUMNS)
 test_set = pd.DataFrame(test_set, columns=COLUMNS)
 prediction_set = pd.DataFrame(prediction_set, columns=COLUMNS)
 
-training_set, test_set = normalize(training_set, test_set)
-
-# print(training_set)
-# y_pos = [0 for i in range(len(norm_train_set[COLUMNS[0]]))]
-# plt.scatter(training_set[COLUMNS[0]], training_set[COLUMNS[2]])
-# plt.show()
 
 
+def plotStatistics():
+	# training_set.hist()
+
+	# training_set.plot(kind='density', subplots=True, layout=(3,3), sharex=False)
+
+	# pd.plotting.scatter_matrix(training_set)
+
+	# cax = plt.matshow(training_set.corr(), vmin=-1, vmax=1)
+	# plt.colorbar(cax)
+	# locs, labs = plt.xticks()
+	# plt.xticks(locs[1:-1], COLUMNS)
+	# plt.yticks(locs[1:-1], COLUMNS)
+
+
+	plt.scatter(training_set['dist'], training_set['CS'])
+
+
+	plt.show()
+
+
+
+def train(training_set, test_set):
+	# training_set /= 1000
+	# test_set /= 1000
+	# training_set, test_set = normalize(training_set, test_set)
+
+	feature_cols = [tf.feature_column.numeric_column(k) for k in FEATURES]
+
+
+	regressor = tf.estimator.DNNRegressor(feature_columns=feature_cols,hidden_units=[64, 64], 
+		dropout=0.5)
+	
+ # optimizer=tf.train.AdamOptimizer(learning_rate=0.001)
+
+	regressor.train(input_fn=get_input_fn(training_set, num_epochs=None, shuffle=True), steps=train_steps)
+
+
+
+	eval_metrics = regressor.evaluate(input_fn=get_input_fn(test_set, num_epochs=1, shuffle=False))
+
+	print("eval metrics: %r"% eval_metrics)
+
+	y = regressor.predict(input_fn=get_input_fn(prediction_set, num_epochs=1, shuffle=False))
+
+	predictions = list(p["predictions"] for p in itertools.islice(y, 6))
+	print("Predictions: {}".format(str(predictions)))
 
 
 
 
+train(training_set, test_set)
+# plotStatistics()
 
-
-feature_cols = [tf.feature_column.numeric_column(k) for k in FEATURES]
-
-
-regressor = tf.estimator.DNNRegressor(feature_columns=feature_cols,hidden_units=[10, 10], 
-	dropout=0.5, optimizer=tf.train.AdamOptimizer(learning_rate=0.001))
-
-
-regressor.train(input_fn=get_input_fn(training_set, num_epochs=None, shuffle=True), steps=train_steps)
-
-
-eval_metrics = regressor.evaluate(input_fn=get_input_fn(test_set, num_epochs=1, shuffle=False))
-
-print("eval metrics: %r"% eval_metrics)
-
-y = regressor.predict(input_fn=get_input_fn(prediction_set, num_epochs=1, shuffle=False))
-
-predictions = list(p["predictions"] for p in itertools.islice(y, 6))
-print("Predictions: {}".format(str(predictions)))
 
 
 

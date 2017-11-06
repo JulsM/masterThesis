@@ -75,6 +75,7 @@ if (isset($_GET['strava_id'])) {
 
     $athlete->printAthlete();
 
+
     echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
                 <input type="hidden" name="strava_id" value="'.$athlete->id.'">
                 <input type="hidden" name="update" value="true">

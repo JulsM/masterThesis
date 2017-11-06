@@ -149,16 +149,28 @@ class FileWriter {
 	public function writeRaceFeatures($activities) {	
 		
 	    $list = [];
-	    $list[] = array('distance', 'elevation', 'vo2max', 'tss', 'finishTime');
+	    $list[] = array('distance', 'elevation', 'avgSpeed', 'hilly', 'climbScore', 'finishTime');
 		for($i = 0; $i < count($activities); $i++) {
 			$ac = $activities[$i];
 			if($ac->activityType == 'race') {
-		    	$list[] = array($ac->distance, $ac->elevationGain, $ac->vo2Max, $ac->tss, $ac->elapsedTime);
+		    	// $list[] = array($ac->distance / 1000, $ac->elapsedTime / 60);
+		    	$list[] = array($ac->distance / 1000, $ac->elevationGain, $ac->averageSpeed, $ac->percentageHilly, $ac->climbScore, $ac->elapsedTime / 60);
 		    }
 		}
 		$this->writeCsv($list, 'raceFeatures');
 
+	}
+
+	public function writeTsbModel($activities) {	
 		
+	    $list = [];
+	    $list[] = array('date', 'tss', 'atl', 'ctl', 'vo2max');
+		for($i = 0; $i < count($activities); $i++) {
+			$ac = $activities[$i];
+	    	$list[] = array(date('Y-m-d H:i:s', strtotime($ac->date)), $ac->tss, $ac->preAtl, $ac->preCtl, $ac->vo2Max);
+		    
+		}
+		$this->writeCsv($list, 'tsbModel');
 
 	}
 

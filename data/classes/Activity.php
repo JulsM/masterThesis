@@ -48,6 +48,10 @@ class Activity {
 
 	public $tss;
 
+	public $preAtl;
+
+	public $preCtl;
+
 	public $writeFiles;
 
 
@@ -78,6 +82,8 @@ class Activity {
 	   		$this->calculateClimbScore();
 	   		$this->calculateNGP();
 	   		$this->calculateTSS();
+	   		$this->preAtl = Athlete::getATL($this->athleteId, $this->date);
+	   		$this->preCtl = Athlete::getCTL($this->athleteId, $this->date);
 	   		
 	   	} else {
 	   		$this->id = $data['strava_id'];
@@ -106,6 +112,8 @@ class Activity {
 			$this->splitType = $data['split_type'];
 			$this->averageNGP = $data['average_ngp'];
 			$this->tss = $data['training_stress_score'];
+			$this->preAtl = $data['pre_activity_atl'];
+			$this->preCtl = $data['pre_activity_ctl'];
 	   	}
     
     	
@@ -461,7 +469,7 @@ class Activity {
 
 	}
 
-	private function getFTP() {
+	public function getFTP() {
 		global $db;
 
 		$weeksAfter = date('Y-m-d H:i:s e',strtotime($this->date.' -'.Config::$FTPWeeks.' weeks'));
@@ -724,6 +732,8 @@ class Activity {
 		echo 'Percentage hilly: '.round($this->percentageHilly * 100, 2).' %<br>';
 		echo 'VO2max: '.round($this->vo2Max, 2).'<br>';
 		echo 'Training Stress Score: '.round($this->tss, 2).'<br>';
+		echo 'Pre-activity ATL: '.round($this->preAtl, 2).'<br>';
+		echo 'Pre-activity CTL: '.round($this->preCtl, 2).'<br>';
 		echo 'Surface: '.$this->surface.' %<br>';
 		echo '#Segments: '.count($this->segments).'<br>';
 		echo '#Climbs: '.count($this->climbs).'<br>';

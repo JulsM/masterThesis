@@ -35,6 +35,9 @@ def main(unused_argv):
       x={'x': x_train}, y=y_train, batch_size=1, num_epochs=None, shuffle=True)
   regressor.train(input_fn=train_input_fn, steps=2000)
 
+  
+
+
   # Predict.
   x_transformed = scaler.transform(x_test)
   test_input_fn = tf.estimator.inputs.numpy_input_fn(
