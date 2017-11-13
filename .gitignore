@@ -3,3 +3,4 @@ output
 /data/.htpasswd
 /data/.htaccess
 /sftp-config.json
+temp

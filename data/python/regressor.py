@@ -3,26 +3,29 @@ import tensorflow as tf
 import itertools
 import pandas as pd
 import matplotlib.pyplot as plt 
+from sklearn import preprocessing
 
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
 # Learning rate for the model
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.01
 
-TRAIN_STEPS = 20000
+TRAIN_STEPS = 2000
 
 FILE_PATH = "../output/raceFeatures.csv"
 SAVE_PATH = "temp"
-COLUMNS = ["dist", "elev", "avgSpeed", "hilly", "CS", "time"]
-FEATURES = ["dist", "elev", "avgSpeed", "hilly", "CS"]
+COLUMNS = ["dist", "elev", "hilly", "cs", "atl", "ctl", "time"]
+FEATURES = ["dist", "elev", "hilly", "cs", "atl", "ctl"]
 # FEATURES = ["dist", "elev"]
 LABEL = "time"
 
 def plotStatistics():
 	training_set, test_set, prediction_set = loadData()
+	# training_set, test_set, prediction_set = normalize(training_set, test_set, prediction_set)
 	dataset = pd.concat([training_set, test_set])
 	# training_set.hist()
+
 
 	# dataset.plot(kind='density', subplots=True, layout=(3,3), sharex=False)
 
@@ -44,16 +47,30 @@ def clearOldFiles():
 	if tf.gfile.Exists(SAVE_PATH):
    		tf.gfile.DeleteRecursively(SAVE_PATH) 
 
-def normalize(train, test):
+def normalize(train, test, pred):
 	label_train = train[LABEL]
 	label_test = test[LABEL]
-	mean, std = train[FEATURES].mean(axis=0), train[FEATURES].std(axis=0)
+
+	# mean, std = train[FEATURES].mean(axis=0), train[FEATURES].std(axis=0, ddof=0)
+	# train = (train[FEATURES] - mean) /std
+	# test = (test[FEATURES] - mean) / std
+	# train = pd.concat([X_train, label_train], axis=1)
+	# test = pd.concat([X_test, label_test], axis=1)
+
+	# minmax_scale = preprocessing.MinMaxScaler(feature_range=(-1, 1)).fit(train[FEATURES])
+	# train[FEATURES] = minmax_scale.transform(train[FEATURES])
+	# test[FEATURES] = minmax_scale.transform(test[FEATURES])
+	# pred[FEATURES] = minmax_scale.transform(pred[FEATURES])
+
+	std_scale = preprocessing.StandardScaler().fit(train[FEATURES])
+	train[FEATURES] = std_scale.transform(train[FEATURES])
+	test[FEATURES] = std_scale.transform(test[FEATURES])
+	pred[FEATURES] = std_scale.transform(pred[FEATURES])
+
 	
-	train = (train[FEATURES] - mean) /std
-	test = (test[FEATURES] - mean) / std
-	train = pd.concat([train, label_train], axis=1)
-	test = pd.concat([test, label_test], axis=1)
-	return train, test
+
+	# print(train)
+	return train, test, pred
 
 
 def get_input_fn(data_set, num_epochs=None, shuffle=True):
@@ -62,9 +79,11 @@ def get_input_fn(data_set, num_epochs=None, shuffle=True):
 
 
 def loadData():
-	training_set = pd.read_csv(FILE_PATH, skipinitialspace=True, skiprows=1, names=COLUMNS, nrows=10)
-	test_set = pd.read_csv(FILE_PATH, skipinitialspace=True, skiprows=11, names=COLUMNS, nrows=5)
-	prediction_set = pd.read_csv(FILE_PATH, skipinitialspace=True, skiprows=16, names=COLUMNS, nrows=1)
+	train_rows = 10
+	test_rows = 5
+	training_set = pd.read_csv(FILE_PATH, skipinitialspace=True, skiprows=1, names=COLUMNS, nrows=train_rows)
+	test_set = pd.read_csv(FILE_PATH, skipinitialspace=True, skiprows=train_rows+1, names=COLUMNS, nrows=test_rows)
+	prediction_set = pd.read_csv(FILE_PATH, skipinitialspace=True, skiprows=train_rows+test_rows+1, names=COLUMNS)
 
 	training_set = pd.DataFrame(training_set, columns=COLUMNS)
 	test_set = pd.DataFrame(test_set, columns=COLUMNS)
@@ -91,12 +110,13 @@ def model_fn(features, labels, mode, params):
 	hidden_layer = tf.layers.dense(input_layer, 10, activation=tf.nn.relu, kernel_regularizer=tf.contrib.layers.l1_l2_regularizer(), name='hidden_1')
 
 	h1_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'hidden_1')
-	tf.summary.histogram('kernel', h1_vars[0])
-	tf.summary.histogram('bias', h1_vars[1])
+	tf.summary.histogram('kernel_1', h1_vars[0])
+	tf.summary.histogram('bias_1', h1_vars[1])
+	tf.summary.histogram('activation_1', hidden_layer)
 
 	if mode == tf.estimator.ModeKeys.TRAIN:
-		hidden_layer = tf.layers.dropout(hidden_layer, rate=0.5, name='dropout')
-		tf.summary.scalar('dropout', tf.nn.zero_fraction(hidden_layer))
+		hidden_layer = tf.layers.dropout(hidden_layer, rate=0.5, name='dropout_1')
+		tf.summary.scalar('dropout_1', tf.nn.zero_fraction(hidden_layer))
 
 
 
@@ -104,12 +124,13 @@ def model_fn(features, labels, mode, params):
 	hidden_layer = tf.layers.dense(hidden_layer, 10, activation=tf.nn.relu, kernel_regularizer=tf.contrib.layers.l1_l2_regularizer(), name='hidden_2')
 
 	h2_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'hidden_2')
-	tf.summary.histogram('kernel', h2_vars[0])
-	tf.summary.histogram('bias', h2_vars[1])
+	tf.summary.histogram('kernel_2', h2_vars[0])
+	tf.summary.histogram('bias_2', h2_vars[1])
+	tf.summary.histogram('activation_2', hidden_layer)
 
 	if mode == tf.estimator.ModeKeys.TRAIN:
-		hidden_layer = tf.layers.dropout(hidden_layer, rate=0.25, name='dropout')
-		tf.summary.scalar('dropout', tf.nn.zero_fraction(hidden_layer))
+		hidden_layer = tf.layers.dropout(hidden_layer, rate=0.25, name='dropout_2')
+		tf.summary.scalar('dropout_2', tf.nn.zero_fraction(hidden_layer))
 
 
 
@@ -140,7 +161,8 @@ def model_fn(features, labels, mode, params):
 	train_op = optimizer.minimize(loss=loss, global_step=tf.train.get_global_step())
 	# grad= optimizer.compute_gradients(loss)
 	# train_op = optimizer.apply_gradients(grad, global_step=tf.train.get_global_step())
-	tf.summary.scalar("learning_rate", optimizer._lr)
+	alpha_t = optimizer._lr * tf.sqrt(1-optimizer._beta2_power) / (1-optimizer._beta1_power)
+	tf.summary.scalar("learning_rate", alpha_t)
 	
 	# for g, v in enumerate(grad):
 	# 	tf.summary.scalar("gradient", g)
@@ -159,9 +181,11 @@ def model_fn(features, labels, mode, params):
 
 def main(unused_argv):
 
-	clearOldFiles()
+	# clearOldFiles()
 	training_set, test_set, prediction_set = loadData()
-	# training_set, test_set = normalize(training_set, test_set)
+
+	training_set, test_set, prediction_set = normalize(training_set, test_set, prediction_set)
+
 	# Set model params
 	model_params = {"learning_rate": LEARNING_RATE}
 

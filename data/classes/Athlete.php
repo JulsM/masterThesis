@@ -128,40 +128,95 @@ class Athlete {
 		}
 	}
 
-	public static function getATL($athleteId, $histDate=null) {
+	public static function getATL($athleteId, $relativeDate=null) {
 		global $db;
-		$to = ($histDate == null ? date('Y-m-d H:i:s e',time()) : $histDate);
-		$days = 7;
-		$from = date('Y-m-d H:i:s e',strtotime($to.' -'.$days.' days'));
+		$to = ($relativeDate == null ? date('Y-m-d H:i:s e',time()) : $relativeDate);
+		$days = 13;
+		if($relativeDate == null) {
+			$from = date('Y-m-d H:i:s e',strtotime(date('Y-m-d', strtotime($to)).' -'.($days-1).' days'));
+		} else {
+			$from = date('Y-m-d H:i:s e',strtotime(date('Y-m-d', strtotime($to)).' -'.($days).' days'));
+		}
         $result = $db->getActivities($athleteId, $from, $to);
-        
+        // echo date('Y-m-d H:i:s e',strtotime(date('Y-m-d', strtotime($to)).' -'.($days-1).' days')) ;
+        // echo $from.' '.$to;
+
         $activities = [];
         if(count($result) > 0) {
 	        foreach ($result as $ac) {
 	        	$activity = new Activity($ac, 'db');
 	        	$activities[] = $activity;
+	        	// echo date('w',strtotime($activity->date));
 	        }
 	    }
-
+	    $tssArray = Athlete::mapToDays($activities, $from, $days);
 	    $lambda = 2 / ($days + 1);
 	    $atl = 50;
-	    if(count($activities) > 2) { // pick start value
-	    	$atl = ($activities[0]->tss + $activities[1]->tss) / 2;
+	    if(count($activities) > 0) { // pick start value
+	    	$atl = $activities[0]->preAtl;
 	    }
-	    for ($i = 0; $i < count($activities); $i++) {
-            $atl = $activities[$i]->tss * $lambda + ((1 - $lambda) * $atl);
-            // echo $atl . ' '.$activities[$i]->tss.' ';
+	    for ($i = 0; $i < count($tssArray); $i++) {
+	    	
+            $atl = $tssArray[$i] * $lambda + ((1 - $lambda) * $atl);
         }
         return $atl;
 
 	}
 
-	public static function getCTL($athleteId, $histDate=null) {
+	private static function mapToDays($activities, $startDate, $numDays) {
+		$dayOfYear = date('z',strtotime($startDate));
+		$tssArray = [];
+
+		$acIndex = 0;
+		for ($i = 0; $i < $numDays; $i++) {
+			$tss = 0;
+	    	// $activityDayOfWeek = date('w',strtotime($activities[$i]->date));
+	    	while($acIndex < count($activities)) {
+	    		$activityDayOfWeek = date('z',strtotime($activities[$acIndex]->date));
+	    		if($activityDayOfWeek == $dayOfYear) {
+		    		$tss += $activities[$acIndex]->tss;
+		    		$acIndex++;
+		    	} else {
+		    		break;
+		    	}
+	    	}
+
+	    	if($dayOfYear < 365) {
+    			$dayOfYear++;
+    		} else {
+    			$dayOfYear = 0;
+    		}
+	    	$tssArray[] = $tss;
+		}
+		## if it is preAct TSS, check is there were activities at that day because it is left out in $numDays
+		$tss = 0;
+		while($acIndex < count($activities)) {
+    		$activityDayOfWeek = date('z',strtotime($activities[$acIndex]->date));
+    		if($activityDayOfWeek == $dayOfYear) {
+	    		$tss += $activities[$acIndex]->tss;
+	    		$acIndex++;
+	    	} else {
+	    		break;
+	    	}
+    	}
+    	if($tss > 0){
+    		$tssArray[] = $tss;
+    	}
+		// print_r($tssArray);
+		return $tssArray;
+	}
+
+	public static function getCTL($athleteId, $relativeDate=null) {
 		global $db;
-		$to = ($histDate == null ? date('Y-m-d H:i:s e',time()) : $histDate);
-		$days = 42;
-		$from = date('Y-m-d H:i:s e',strtotime($to.' -'.$days.' days'));
+		$to = ($relativeDate == null ? date('Y-m-d H:i:s e',time()) : $relativeDate);
+		$days = 83;
+		if($relativeDate == null) {
+			$from = date('Y-m-d H:i:s e',strtotime(date('Y-m-d', strtotime($to)).' -'.($days-1).' days'));
+		} else {
+			$from = date('Y-m-d H:i:s e',strtotime(date('Y-m-d', strtotime($to)).' -'.($days).' days'));
+		}
         $result = $db->getActivities($athleteId, $from, $to);
+        // echo $from.' '.$to;
         $activities = [];
         if(count($result) > 0) {
 	        foreach ($result as $ac) {
@@ -169,14 +224,14 @@ class Athlete {
 	        	$activities[] = $activity;
 	        }
 	    }
-
+	    $tssArray = Athlete::mapToDays($activities, $from, $days);
 	    $lambda = 2 / ($days + 1);
 	    $ctl = 50;
-	    if(count($activities) > 5) { // pick start value
-	    	$ctl = ($activities[0]->tss + $activities[1]->tss + $activities[2]->tss + $activities[3]->tss + $activities[4]->tss) / 5;
+	    if(count($activities) > 0) { // pick start value
+	    	$ctl = $activities[0]->preCtl;
 	    }
-	    for ($i = 0; $i < count($activities); $i++) {
-            $ctl = $activities[$i]->tss * $lambda + ((1 - $lambda) * $ctl);
+	    for ($i = 0; $i < count($tssArray); $i++) {
+            $ctl = $tssArray[$i] * $lambda + ((1 - $lambda) * $ctl);
             // echo $ctl . ' '.$activities[$i]->tss.' ';
         }
         return $ctl;

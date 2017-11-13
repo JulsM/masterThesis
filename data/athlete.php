@@ -75,6 +75,11 @@ if (isset($_GET['strava_id'])) {
 
     $athlete->printAthlete();
 
+    // foreach ($athlete->activities as $ac) {
+    //     $ac->preAtl = Athlete::getATL($athlete->id, $ac->date);
+    //     $ac->preCtl = Athlete::getCTL($athlete->id, $ac->date);
+    //     $db->updateActivity($ac);
+    // }
 
     echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
                 <input type="hidden" name="strava_id" value="'.$athlete->id.'">

@@ -149,12 +149,12 @@ class FileWriter {
 	public function writeRaceFeatures($activities) {	
 		
 	    $list = [];
-	    $list[] = array('distance', 'elevation', 'avgSpeed', 'hilly', 'climbScore', 'finishTime');
+	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'finishTime');
 		for($i = 0; $i < count($activities); $i++) {
 			$ac = $activities[$i];
 			if($ac->activityType == 'race') {
 		    	// $list[] = array($ac->distance / 1000, $ac->elapsedTime / 60);
-		    	$list[] = array($ac->distance / 1000, $ac->elevationGain, $ac->averageSpeed, $ac->percentageHilly, $ac->climbScore, $ac->elapsedTime / 60);
+		    	$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $ac->elapsedTime / 60);
 		    }
 		}
 		$this->writeCsv($list, 'raceFeatures');
@@ -162,12 +162,16 @@ class FileWriter {
 	}
 
 	public function writeTsbModel($activities) {	
+		$acType = array('base training' => 10,
+						'speedwork' => 15,
+						'long run' => 20,
+						'race' => 30);
 		
 	    $list = [];
-	    $list[] = array('date', 'tss', 'atl', 'ctl', 'vo2max');
+	    $list[] = array('date', 'tss', 'atl', 'ctl', 'vo2max', 'acType');
 		for($i = 0; $i < count($activities); $i++) {
 			$ac = $activities[$i];
-	    	$list[] = array(date('Y-m-d H:i:s', strtotime($ac->date)), $ac->tss, $ac->preAtl, $ac->preCtl, $ac->vo2Max);
+	    	$list[] = array(date('Y-m-d H:i:s', strtotime($ac->date)), $ac->tss, $ac->preAtl, $ac->preCtl, $ac->vo2Max, $acType[$ac->activityType]);
 		    
 		}
 		$this->writeCsv($list, 'tsbModel');
