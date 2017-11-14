@@ -29,6 +29,9 @@ if (isset($_GET['strava_id'])) {
         if(!isset($_GET['surface'])) {
             $athlete->activities = Activity::loadActivitiesDb($athlete->id); // load available activities from database
         }
+        if(isset($_GET['load']) && $_GET['load'] == true) {
+            $athlete->updateAthlete();
+        }
 
         if(isset($_GET['update']) && $_GET['update'] == true) { // update athlete in database
             
@@ -75,11 +78,9 @@ if (isset($_GET['strava_id'])) {
 
     $athlete->printAthlete();
 
-    // foreach ($athlete->activities as $ac) {
-    //     $ac->preAtl = Athlete::getATL($athlete->id, $ac->date);
-    //     $ac->preCtl = Athlete::getCTL($athlete->id, $ac->date);
-    //     $db->updateActivity($ac);
-    // }
+
+
+    // $athlete->updateAllActivities();
 
     echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
                 <input type="hidden" name="strava_id" value="'.$athlete->id.'">

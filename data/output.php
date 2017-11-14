@@ -27,6 +27,10 @@ if (isset($_GET['race_features']) && isset($athlete)) {
     echo 'tsb model';
     $fileWriter = new FileWriter($athlete->name);
     $fileWriter->writeTsbModel($athlete->activities);
+} else if (isset($_GET['k_means']) && isset($athlete)) {
+    echo 'k-means';
+    $fileWriter = new FileWriter($athlete->name);
+    $fileWriter->writekmeans($athlete->activities);
 }
 
 
@@ -39,6 +43,11 @@ echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
                 <input type="hidden" name="athlete_id" value="'.$athlete->id.'">
                 <input type="hidden" name="tsb_model" value="true">
                 <input type="submit" value="Write tsb model">
+            </form>';
+echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
+                <input type="hidden" name="athlete_id" value="'.$athlete->id.'">
+                <input type="hidden" name="k_means" value="true">
+                <input type="submit" value="Write k-means">
             </form>';
 
 ?>

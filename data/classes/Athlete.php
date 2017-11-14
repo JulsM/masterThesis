@@ -131,7 +131,7 @@ class Athlete {
 	public static function getATL($athleteId, $relativeDate=null) {
 		global $db;
 		$to = ($relativeDate == null ? date('Y-m-d H:i:s e',time()) : $relativeDate);
-		$days = 13;
+		$days = 7;
 		if($relativeDate == null) {
 			$from = date('Y-m-d H:i:s e',strtotime(date('Y-m-d', strtotime($to)).' -'.($days-1).' days'));
 		} else {
@@ -150,7 +150,7 @@ class Athlete {
 	        }
 	    }
 	    $tssArray = Athlete::mapToDays($activities, $from, $days);
-	    $lambda = 2 / ($days + 1);
+	    $lambda = 1 / $days;
 	    $atl = 50;
 	    if(count($activities) > 0) { // pick start value
 	    	$atl = $activities[0]->preAtl;
@@ -209,7 +209,7 @@ class Athlete {
 	public static function getCTL($athleteId, $relativeDate=null) {
 		global $db;
 		$to = ($relativeDate == null ? date('Y-m-d H:i:s e',time()) : $relativeDate);
-		$days = 83;
+		$days = 42;
 		if($relativeDate == null) {
 			$from = date('Y-m-d H:i:s e',strtotime(date('Y-m-d', strtotime($to)).' -'.($days-1).' days'));
 		} else {
@@ -225,7 +225,7 @@ class Athlete {
 	        }
 	    }
 	    $tssArray = Athlete::mapToDays($activities, $from, $days);
-	    $lambda = 2 / ($days + 1);
+	    $lambda = 1/$days;
 	    $ctl = 50;
 	    if(count($activities) > 0) { // pick start value
 	    	$ctl = $activities[0]->preCtl;
@@ -336,6 +336,29 @@ class Athlete {
 		
 
 		$db->updateAthlete($this);
+	}
+
+	public function updateAllActivities() {
+		global $db;
+		foreach ($this->activities as $ac) {
+			$result = $db->query('SELECT * FROM activity WHERE strava_id = '.$ac->id);
+	        if(!empty($result)) {
+	            $activity = new Activity($result[0], 'db', null, false);
+	      //       $activity->determineSplitType();
+		   		// $activity->determineActivityType();
+		   		// $activity->findSegments();
+		   		// $activity->calculateElevationGain();
+		   		// $activity->calculateVo2max();
+		   		// $activity->computePercentageHilly();
+		   		// $activity->findClimbs();
+		   		// $activity->calculateClimbScore();
+	            $activity->calculateNGP();
+		   		$activity->calculateTSS();
+		   		$activity->preAtl = Athlete::getATL($this->id, $activity->date);
+		   		$activity->preCtl = Athlete::getCTL($this->id, $activity->date);
+		   		$db->updateActivity($activity);
+	        }
+	    }
 	}
 
 	public function getNumberActyvityType($type) {

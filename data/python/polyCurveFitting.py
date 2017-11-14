@@ -5,14 +5,15 @@ import pandas as pd
 
 
 data = pd.read_csv('efficiency_grad.csv', skipinitialspace=True, skiprows=1, names=['eff', 'grad'])
+
 trX = data['grad'].values /100
 trY = data['eff'].values
 
-poly_grad = 5 + 1
+poly_grad = 5 +1
 
 def fit():
 	learning_rate = 0.01
-	training_epochs = 10000
+	training_epochs = 15000
 	
 
 	X = tf.placeholder("float32")
@@ -29,7 +30,7 @@ def fit():
 
 	W = tf.Variable([0.] * poly_grad, name="parameters")
 	y_model = model(X, W)
-
+	constrain = W[0].assign(1)
 
 	loss = tf.losses.mean_squared_error(Y, y_model)
 	# regularizer = tf.nn.l2_loss(W)
@@ -42,7 +43,7 @@ def fit():
 	for epoch in range(training_epochs):
 	    for (x, y) in zip(trX, trY):
 	        sess.run(train_op, feed_dict={X: x, Y: y})
-	        # print(x, y)
+	        sess.run(constrain)
 
 	    training_cost = sess.run(loss, feed_dict={X: trX, Y: trY})
 	    if epoch % 100 == 0:
@@ -50,12 +51,17 @@ def fit():
 
 
 	pred = sess.run(y_model, feed_dict={X: 0})
-	print('pred: ', pred)
+	print('pred: 0% ', pred)
+	pred = sess.run(y_model, feed_dict={X: -0.09})
+	print('pred: -9% ', pred)
+	pred = sess.run(y_model, feed_dict={X: -0.18})
+	print('pred: -18% ', pred)
 	w_val = sess.run(W)
 	print(w_val)
 	pd.DataFrame([w_val]).to_csv('weights.csv', index=False, header=False)
 
 	sess.close()
+	w_val[0] = 1
 	return w_val
 
 def plot(w):

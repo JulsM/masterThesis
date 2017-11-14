@@ -16,7 +16,7 @@ def plotTsb():
 			
 
 	ax = plt.subplot(1,1,1)
-	ax.plot(data['date'], data['tss'], 'k', label="TSS", linewidth = 0.8, alpha=0.5)
+	ax.plot(data['date'], data['tss'], 'ko', label="TSS", ms=3, alpha=0.5)
 	ax.plot(data['date'], data['atl'], 'r', label="ATL", linewidth = 0.8)
 	ax.plot(data['date'], data['ctl'], 'b', label="CTL", linewidth = 0.8)
 	ax.plot(data['date'], data['acType'], 'go', label="type", ms=1)

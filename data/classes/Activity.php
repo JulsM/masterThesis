@@ -463,7 +463,7 @@ class Activity {
 
 		// $list = [];
 		// for($i = -0.3; $i <= 0.3; $i += 0.01) {
-		// 	$list[] = array($i, $this->getEnergyCost($i), $this->getEnergyCostAdjusted($i));
+		// 	$list[] = array($i, $this->getEnergyCost($i));
 		// }
 		// $fileWriter->writeCsv($list, 'minetti');
 
@@ -529,7 +529,7 @@ class Activity {
         return $ftp;
 	}
 
-	private function calculateNGP() {
+	public function calculateNGP() {
 		//smooth grade in DataPoints
 		$gradeData = array_map(function($p) {return $p->grade;},$this->rawDataPoints);
 		$smoothedGrade = $this->simpleMovingAverage($gradeData, 7);
@@ -598,15 +598,14 @@ class Activity {
 	}
 
 
-	// Minetti function
+	
 	private function getEnergyCost($g) {
         // return (155.4 * pow($g, 5)  - 30.4 * pow($g, 4) - 43.3 * pow($g, 3) + 46.3 * pow($g, 2) + (19.5 * $g) + 3.6) / 3.6; 
-        return (350 * pow($g, 5)  - 40 * pow($g, 4) - 36 * pow($g, 3) + 65 * pow($g, 2) + (11.8 * $g) + 3.6) / 3.6; 
+        // return (350 * pow($g, 5)  - 40 * pow($g, 4) - 36 * pow($g, 3) + 65 * pow($g, 2) + (11.8 * $g) + 3.6) / 3.6; 
+        return -26.093883514404297 * pow($g, 5)  -42.793968200683594 * pow($g, 4) - 0.6524703502655029 * pow($g, 3) + 18.595693588256836 * pow($g, 2) + (2.929260015487671 * $g) + 1; 
     }
 
-    private function getEnergyCostAdjusted($g) {
-        return (350 * pow($g, 5)  - 40 * pow($g, 4) - 36 * pow($g, 3) + 65 * pow($g, 2) + (11.8 * $g) + 3.6) / 3.6; 
-    }
+    
 
 	private function simpleMovingAverage($numbers, $n) {
         $m   = count($numbers);
@@ -684,7 +683,7 @@ class Activity {
 	public static function loadActivitiesDb($athleteId) {
 		global $db;
 		// echo 'load activities db';
-		$dateInPast = date('Y-m-d H:i:s e',strtotime(Config::$maxActivityAgo.' years'));
+		$dateInPast = date('Y-m-d H:i:s e',strtotime('-10 years'));
         $result = $db->getActivities($athleteId, $dateInPast);
 
 

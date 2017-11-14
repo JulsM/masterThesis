@@ -49,5 +49,5 @@ def plotTss():
 
 	plt.show()
 
-plotTss()
-# plotMinetti()
+# plotTss()
+plotMinetti()
