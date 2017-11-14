@@ -181,10 +181,10 @@ class FileWriter {
 	public function writekmeans($activities) {	
 		
 	    $list = [];
-	    $list[] = array('distance', 'elevation', 'speed');
+	    $list[] = array('distance', 'elevation', 'speed', 'type');
 		for($i = 0; $i < count($activities); $i++) {
 			$ac = $activities[$i];
-	    	$list[] = array($ac->distance, $ac->elevationGain, $ac->averageSpeed);
+	    	$list[] = array($ac->distance, $ac->elevationGain, $ac->averageNGP, $ac->activityType);
 		    
 		}
 		$this->writeCsv($list, 'kmeans');
