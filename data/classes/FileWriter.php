@@ -1,4 +1,7 @@
 <?php
+require_once "lib/php-kmeans-master/src/KMeans/Space.php";
+require_once "lib/php-kmeans-master/src/KMeans/Point.php";
+require_once "lib/php-kmeans-master/src/KMeans/Cluster.php";
 
 class FileWriter {
 	
@@ -147,17 +150,63 @@ class FileWriter {
 	}
 
 	public function writeRaceFeatures($activities) {	
+
 		
 	    $list = [];
 	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'finishTime');
 		for($i = 0; $i < count($activities); $i++) {
 			$ac = $activities[$i];
-			if($ac->activityType == 'race') {
-		    	// $list[] = array($ac->distance / 1000, $ac->elapsedTime / 60);
+			if($ac->activityType == 'race' ) {
 		    	$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $ac->elapsedTime / 60);
-		    }
+		    } 
+		    
 		}
 		$this->writeCsv($list, 'raceFeatures');
+
+	}
+
+	public function writeAllActivitiesFeatures($activities) {	
+
+		
+	    $list = [];
+	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'finishTime');
+		for($i = 0; $i < count($activities); $i++) {
+			$ac = $activities[$i];
+	    	$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $ac->elapsedTime / 60);
+	    
+		    
+		}
+		$this->writeCsv($list, 'activitiesFeatures');
+
+	}
+
+	public function writeActivitySetRelation($activities) {	
+
+		
+	    $list = [];
+	    $list[] = array('distance', 'elevation', 'time');
+		for($i = 0; $i < count($activities); $i++) {
+			$ac = $activities[$i];
+	    	$list[] = array($ac->distance, $ac->elevationGain, $ac->elapsedTime / 60);
+	    
+		    
+		}
+		$this->writeCsv($list, 'activitieSetRelation');
+
+	}
+
+	public function writeTrainFeatures($activities) {	
+		$clusters = $this->clusterActivities($activities);
+		$taggedAc = $clusters[count($clusters) - 1];
+		
+	    $list = [];
+	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'finishTime');
+		for($i = 0; $i < count($taggedAc); $i++) {
+			$ac = $taggedAc[$i];
+			
+		    $list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $ac->elapsedTime / 60);
+		}
+		$this->writeCsv($list, 'trainFeatures');
 
 	}
 
@@ -180,16 +229,115 @@ class FileWriter {
 
 	public function writekmeans($activities) {	
 		
+		$taggedActivities = $this->clusterActivities($activities);
+		
+		
 	    $list = [];
-	    $list[] = array('distance', 'elevation', 'speed', 'type');
-		for($i = 0; $i < count($activities); $i++) {
-			$ac = $activities[$i];
-	    	$list[] = array($ac->distance, $ac->elevationGain, $ac->averageNGP, $ac->activityType);
-		    
+	    $list[] = array('distance', 'elevation', 'time', 'cluster');
+	    for($c = 0; $c < count($taggedActivities); $c++) {
+			for($i = 0; $i < count($taggedActivities[$c]); $i++) {
+				$ac = $taggedActivities[$c][$i];
+		    	$list[] = array($ac->distance, $ac->elevationGain, $ac->elapsedTime/60, $c);
+			    
+			}
 		}
 		$this->writeCsv($list, 'kmeans');
 
 	}
+
+	public function clusterActivities($activities) {
+		$noRaces = [];
+		$races = [];
+		foreach ($activities as $ac) {
+			if($ac->activityType == 'race') {
+				$races[] = $ac;
+			} else {
+				$noRaces[] = $ac;
+			}
+		}
+		$clusters = $this->kmeansActivities($noRaces);
+		$taggedActivities = [];
+		$fastList = [];
+		foreach ($clusters as $c) {
+			$speeds = array_map(function($a) {return $a->averageNGP;}, $c);
+			$speedMean = array_sum($speeds) / count($speeds);
+			$speedMax = max($speeds);
+			$speedThreshold = ($speedMean + $speedMax) / 2;
+			$slowList = [];
+			foreach ($c as $ac) {
+				if($ac->averageNGP >= $speedThreshold) {
+					$fastList[] = $ac;
+				} else {
+					$slowList[] = $ac;
+				}
+			}
+			$taggedActivities[] = $slowList;
+			// echo $speedThreshold.' ';
+		}
+		$selectedActivities = array_merge($fastList, $races);
+		$taggedActivities[] = $selectedActivities;
+		return $taggedActivities;
+	}
+
+	public function kmeansActivities($activities, $nClusters=5) {
+
+		$clusteredActivities = [];
+
+		$vals = array_map(function($a) {return array($a->distance, $a->elevationGain) ;}, $activities);
+		
+		$dist = array_column($vals, 0);
+		$secDim = array_column($vals, 1);
+		$distMean = array_sum($dist) / count($dist);
+		$distStd = $this->stats_standard_deviation($dist);
+		$secDimMean = array_sum($dist) / count($dist);
+		$secDimStd = $this->stats_standard_deviation($dist);
+		
+		// create a 2-dimentions space
+		$space = new KMeans\Space(2);
+		// add points to space
+		foreach ($activities as $ac){
+			$standDist = ($ac->distance - $distMean) / $distStd;
+			$standSecDim= ($ac->elevationGain - $secDimMean) / $secDimStd;
+			
+			// echo $standDist.' '.$standSecDim.'; ';
+		    $space->addPoint(array($standDist, $standSecDim), $ac);
+		}
+
+		// cluster these 50 points in 3 clusters
+		$clusters = $space->solve($nClusters, KMeans\Space::SEED_DASV);
+		// display the cluster centers and attached points
+		foreach ($clusters as $i => $cluster) {
+			$c = [];
+		    printf("Cluster %s [%f,%f]: %d points<br>", $i, $cluster[0] * $distStd + $distMean, $cluster[1] * $secDimStd + $secDimMean, count($cluster));
+		    foreach ($cluster as $point){
+		    	$c[] = $space[$point];
+		    }
+   			$clusteredActivities[] = $c;	
+		}
+		return $clusteredActivities;
+	}
+
+	function stats_standard_deviation(array $a, $sample = false) {
+        $n = count($a);
+        if ($n === 0) {
+            trigger_error("The array has zero elements", E_USER_WARNING);
+            return false;
+        }
+        if ($sample && $n === 1) {
+            trigger_error("The array has only 1 element", E_USER_WARNING);
+            return false;
+        }
+        $mean = array_sum($a) / $n;
+        $carry = 0.0;
+        foreach ($a as $val) {
+            $d = ((double) $val) - $mean;
+            $carry += $d * $d;
+        };
+        if ($sample) {
+           --$n;
+        }
+        return sqrt($carry / $n);
+    }
 
 	public function lock() {
 		$this->lock = true;

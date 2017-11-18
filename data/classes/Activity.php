@@ -662,11 +662,10 @@ class Activity {
         if(!empty($newestActivityDate)) {
             $stravaDatePast = strtotime($newestActivityDate);
         }
-        echo date('Y-m-d H:i:s e', $stravaDatePast);
+        echo 'activities from this date on '.date('Y-m-d H:i:s e', $stravaDatePast);
         $app->createStravaApi($token);
         $api = $app->getApi();
         $newStravaActivities = $api->getActivties($stravaDatePast); 
-
         $returnObjects = [];
         foreach ($newStravaActivities as $ac) {
         	$rawStream = $api->getStream($ac['id'], "distance,altitude,latlng,time,velocity_smooth");

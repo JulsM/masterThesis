@@ -118,4 +118,9 @@ class Db
         }
     }
 
+    public function deleteActivities($athleteId) {
+        $query = "DELETE FROM activity WHERE athlete_id =" . $athleteId;
+        $result = $this->query($query);
+    }
+
 }

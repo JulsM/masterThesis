@@ -395,11 +395,12 @@ class Athlete {
 		echo 'Acute Training Load: '.round($this->atl, 2).' <br>';
 		echo 'Chronic Training Load: '.round($this->ctl, 2).' <br>';
 		echo 'Training Stress Balance: '.round($this->ctl - $this->atl, 2).' <br>';
-		$ftp = 0;
+		$ftp = '00:00';
 		if(count($this->activities) > 0) {
 			$ftp = $this->activities[count($this->activities)-1]->getFTP();
+			$ftp = floor((1000/$ftp/60)). ':'.(1000/$ftp%60);
 		}
-		echo 'Functional Threshold Pace: '.floor((1000/$ftp/60)). ':'.(1000/$ftp%60) .' min/km<br>';
+		echo 'Functional Threshold Pace: '.$ftp.' min/km<br>';
 		$this->xWeekSummary->printSummary();
 	}
 

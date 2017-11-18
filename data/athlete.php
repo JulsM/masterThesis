@@ -1,10 +1,6 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <meta charset="utf-8">
-    </head>
-    <body>
-    <div style="width: 80%; height: 80%; margin: 5% auto">
+    
     
 <?php
 include_once '../database.php';
@@ -23,7 +19,12 @@ if (isset($_GET['strava_id'])) {
 
         $athlete = new Athlete($athleteResult[0], 'db');
         if(isset($_GET['load']) && $_GET['load'] == true) { // download new activities from strava
-            Activity::downloadNewActivities($athlete->id, $athlete->token);
+            $newActivities = Activity::downloadNewActivities($athlete->id, $athlete->token);
+
+            if(count($newActivities) == 0) {
+                $_GET['load'] = false;
+                echo 'no more new activities';
+            }
         }
 
         if(!isset($_GET['surface'])) {
@@ -60,6 +61,9 @@ if (isset($_GET['strava_id'])) {
             }
             $athlete->activities = Activity::loadActivitiesDb($athlete->id); // load available activities from database
             
+        } else if(isset($_GET['delete_activities']) && $_GET['delete_activities'] == true) { // delete all activities from db
+            $db->deleteActivities($athlete->id);
+            $athlete->activities = array();
         }
 
     } else { // athlete from strava
@@ -74,6 +78,22 @@ if (isset($_GET['strava_id'])) {
         }
     }
 }
+?>
+<head>
+<meta charset="utf-8">
+<?php 
+if(isset($_GET['load']) && $_GET['load'] == true) {
+    $url = $_SERVER['PHP_SELF'].'?strava_id='.$_GET['strava_id'].'&load=true';
+    echo '<meta http-equiv="refresh" content="1; URL='.$url.'">';
+} else if(isset($_GET['load']) && $_GET['load'] == false) {
+    $url = $_SERVER['PHP_SELF'].'?strava_id='.$_GET['strava_id'];
+    echo '<meta http-equiv="refresh" content="1; URL='.$url.'">';
+}
+?>
+</head>
+<body>
+<div style="width: 80%; height: 80%; margin: 5% auto">
+<?php
 // echo (memory_get_usage()/1024/1024) . "\n";
 
     $athlete->printAthlete();
@@ -103,6 +123,12 @@ if (isset($_GET['strava_id'])) {
     echo '<form action="output.php" method="get">
                 <input type="hidden" name="athlete_id" value="'.$athlete->id.'">
                 <input type="submit" value="Output page">
+            </form>';
+
+    echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
+                <input type="hidden" name="strava_id" value="'.$athlete->id.'">
+                <input type="hidden" name="delete_activities" value="true">
+                <input type="submit" value="Delete all activities">
             </form>';
     
 

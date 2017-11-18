@@ -1,3 +1,5 @@
+# coding: utf-8
+
 import numpy as np
 import matplotlib.pyplot as plt 
 import pandas as pd
@@ -5,36 +7,48 @@ from mpl_toolkits.mplot3d import Axes3D
 
 
 
-
 def plotkmeans():
-	data = pd.read_csv('../output/kmeans.csv', skiprows=1, names=['dist', 'elev', 'speed', 'type'])
+	data = pd.read_csv('../output/kmeans.csv')
+
+	colors = ['red', 'blue', 'green', 'yellow', 'cyan', 'grey', 'purple', 'coral', 'k', 'saddlebrown']
 	
 	
 	fig = plt.figure(figsize=(12, 4), dpi=100, facecolor='w')
 	ax = fig.add_subplot(111, projection='3d')
 
-	races = data[data.type == 'race']
+	numClusters = data.cluster.nunique();
 	
+	for c in range(numClusters):
+		cluster = data[data.cluster == c]
+		ax.scatter(cluster['distance'], cluster['elevation'], cluster['time'], c=colors[c], s=5)
 
-	f = (data.dist > 9500) & (data.dist < 10500) | (data.dist > 4500) & (data.dist < 5500) | (data.dist > 20000) & (data.dist < 21800)
-	filtered = data[f]
 
-	data = data[~f]
-	ax.scatter(data['dist'], data['elev'], data['speed'], c='k', s=3)
-
-	
-	print(len(data))
-
-	ax.scatter(filtered['dist'], filtered['elev'], filtered['speed'], c='r', s=3)
-	ax.scatter(races['dist'], races['elev'], races['speed'], c='g', s=15, marker='+')
-
-	
-	
 	plt.legend(fontsize="small", loc="upper right")
 	ax.set_xlabel('distance')
 	ax.set_ylabel('elevation')
-	ax.set_zlabel('speed')
+	ax.set_zlabel('time')
 	plt.grid()
+
+	print(len(data[data.cluster == 5]))
+	
+	fig = plt.figure(figsize=(12, 4), dpi=100, facecolor='w')
+	ax = fig.add_subplot(111, projection='3d')
+
+
+	# cluster = data[data.cluster == 0]
+	# threshold = (cluster.speed.mean() + cluster.speed.max()) / 2
+	# group = cluster[cluster.speed > threshold]
+	# print(threshold)
+	# ax.scatter(group['distance'], group['elevation'], group['speed'], c='k', s=5)
+	# group = cluster[cluster.speed < threshold]
+	# ax.scatter(group['distance'], group['elevation'], group['speed'], c='r', s=5)
+	# print(data[(data.distance > 9500) & (data.distance < 10500)] )
+
+	# rel = data[data.cluster == 4]
+	# ax.scatter(rel['distance'], rel['elevation'], rel['time'], c='r', s=5)
+	
+	
+	
 
 
 	plt.show()

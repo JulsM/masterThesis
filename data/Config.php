@@ -4,7 +4,7 @@ class Config {
 
 
 	## API
-	static $numOfActivities = 12;
+	static $numOfActivities = 8;
 
 	## Clean Google data
 	static $cleanMinDist = 5; // meters
@@ -41,7 +41,7 @@ class Config {
 
 	## athlete summary
 	static $XWeeks = 8; //weeks
-	static $maxActivityAgo = -1; //year
+	static $maxActivityAgo = -2; //year
 
 	## TSS
 	static $FTPWeeks = 25; // weeks

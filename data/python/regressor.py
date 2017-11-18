@@ -4,6 +4,8 @@ import itertools
 import pandas as pd
 import matplotlib.pyplot as plt 
 from sklearn import preprocessing
+import math as math
+import os
 
 
 tf.logging.set_verbosity(tf.logging.INFO)
@@ -11,9 +13,10 @@ tf.logging.set_verbosity(tf.logging.INFO)
 # Learning rate for the model
 LEARNING_RATE = 0.01
 
-TRAIN_STEPS = 2000
+TRAIN_STEPS = 40000
 
 FILE_PATH = "../output/raceFeatures.csv"
+PRED_PATH = "../output/predictions.csv"
 SAVE_PATH = "temp"
 COLUMNS = ["dist", "elev", "hilly", "cs", "atl", "ctl", "time"]
 FEATURES = ["dist", "elev", "hilly", "cs", "atl", "ctl"]
@@ -44,6 +47,11 @@ def plotStatistics():
 	plt.show()
 
 def clearOldFiles():
+
+	# filelist = [ f for f in os.listdir(SAVE_PATH)]
+	# for f in filelist:
+	# 	os.chmod(os.path.join(SAVE_PATH, f), 0o777)
+	# 	os.remove(os.path.join(SAVE_PATH, f))
 	if tf.gfile.Exists(SAVE_PATH):
    		tf.gfile.DeleteRecursively(SAVE_PATH) 
 
@@ -79,16 +87,26 @@ def get_input_fn(data_set, num_epochs=None, shuffle=True):
 
 
 def loadData():
-	train_rows = 10
-	test_rows = 5
-	training_set = pd.read_csv(FILE_PATH, skipinitialspace=True, skiprows=1, names=COLUMNS, nrows=train_rows)
-	test_set = pd.read_csv(FILE_PATH, skipinitialspace=True, skiprows=train_rows+1, names=COLUMNS, nrows=test_rows)
-	prediction_set = pd.read_csv(FILE_PATH, skipinitialspace=True, skiprows=train_rows+test_rows+1, names=COLUMNS)
+	
+
+	data = pd.read_csv(FILE_PATH, skipinitialspace=True, skiprows=1, names=COLUMNS)
+	predData = pd.read_csv(PRED_PATH, skipinitialspace=True, skiprows=1, names=COLUMNS)
+	# data = data.sample(frac=1).reset_index(drop=True)
+	numRows = len(data.index)
+	train_rows = math.floor(numRows * 0.8)
+	test_rows = numRows - train_rows
+	training_set = data[:train_rows]
+	test_set = data[train_rows:train_rows + test_rows].reset_index(drop=True)
+	# print(data)
+	print('train size: ',train_rows,' test size: ', test_rows)
+	# print(training_set)
+	# print(test_set)
+	# print(predData)
 
 	training_set = pd.DataFrame(training_set, columns=COLUMNS)
 	test_set = pd.DataFrame(test_set, columns=COLUMNS)
-	prediction_set = pd.DataFrame(prediction_set, columns=COLUMNS)
-	# prediction_set = pd.DataFrame({"dist": [x for x in range(5, 25, 1)], "time": [x for x in range(5, 25, 1)]})
+	prediction_set = pd.DataFrame(predData, columns=COLUMNS)
+
 	return training_set, test_set, prediction_set
 
 
@@ -107,7 +125,8 @@ def model_fn(features, labels, mode, params):
 
 
 	# Connect the first hidden layer to second hidden layer with relu
-	hidden_layer = tf.layers.dense(input_layer, 10, activation=tf.nn.relu, kernel_regularizer=tf.contrib.layers.l1_l2_regularizer(), name='hidden_1')
+	hidden_layer = tf.layers.dense(input_layer, 10, activation=tf.nn.relu, 
+		kernel_regularizer=tf.contrib.layers.l1_l2_regularizer(scale_l1=0.9, scale_l2=0.9), name='hidden_1')
 
 	h1_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'hidden_1')
 	tf.summary.histogram('kernel_1', h1_vars[0])
@@ -115,13 +134,14 @@ def model_fn(features, labels, mode, params):
 	tf.summary.histogram('activation_1', hidden_layer)
 
 	if mode == tf.estimator.ModeKeys.TRAIN:
-		hidden_layer = tf.layers.dropout(hidden_layer, rate=0.5, name='dropout_1')
+		hidden_layer = tf.layers.dropout(hidden_layer, rate=0.3, name='dropout_1')
 		tf.summary.scalar('dropout_1', tf.nn.zero_fraction(hidden_layer))
 
 
 
 	# Connect the second hidden layer to first hidden layer with relu
-	hidden_layer = tf.layers.dense(hidden_layer, 10, activation=tf.nn.relu, kernel_regularizer=tf.contrib.layers.l1_l2_regularizer(), name='hidden_2')
+	hidden_layer = tf.layers.dense(hidden_layer, 10, activation=tf.nn.relu, 
+		kernel_regularizer=tf.contrib.layers.l1_l2_regularizer(scale_l1=0.9, scale_l2=0.9), name='hidden_2')
 
 	h2_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'hidden_2')
 	tf.summary.histogram('kernel_2', h2_vars[0])
@@ -129,7 +149,7 @@ def model_fn(features, labels, mode, params):
 	tf.summary.histogram('activation_2', hidden_layer)
 
 	if mode == tf.estimator.ModeKeys.TRAIN:
-		hidden_layer = tf.layers.dropout(hidden_layer, rate=0.25, name='dropout_2')
+		hidden_layer = tf.layers.dropout(hidden_layer, rate=0.3, name='dropout_2')
 		tf.summary.scalar('dropout_2', tf.nn.zero_fraction(hidden_layer))
 
 
@@ -180,9 +200,12 @@ def model_fn(features, labels, mode, params):
 
 
 def main(unused_argv):
+	predictionOnly = False;
+	clearOldFiles()
 
-	# clearOldFiles()
 	training_set, test_set, prediction_set = loadData()
+
+	# prediction_set = pd.DataFrame([(10000, 20, 0.02, 0, 39.5, 45, 37)], columns=COLUMNS)
 
 	training_set, test_set, prediction_set = normalize(training_set, test_set, prediction_set)
 
@@ -190,21 +213,23 @@ def main(unused_argv):
 	model_params = {"learning_rate": LEARNING_RATE}
 
 	# Instantiate Estimator
-	nn = tf.estimator.Estimator(model_fn=model_fn, params=model_params, model_dir=SAVE_PATH, config=tf.estimator.RunConfig().replace(save_summary_steps=100))
+	nn = tf.estimator.Estimator(model_fn=model_fn, params=model_params, model_dir=SAVE_PATH)
 
-	train_input_fn = get_input_fn(training_set, num_epochs=None, shuffle=True)
+	if not predictionOnly:
+		train_input_fn = get_input_fn(training_set, num_epochs=None, shuffle=True)
 
-	# Train
-	nn.train(input_fn=train_input_fn, steps=TRAIN_STEPS)
+		# Train
+		nn.train(input_fn=train_input_fn, steps=TRAIN_STEPS)
 
-	# Score accuracy
-	test_input_fn = get_input_fn(test_set, num_epochs=1, shuffle=False)
-	ev = nn.evaluate(input_fn=test_input_fn)
-	print("Loss: %s" % ev["loss"])
-	print("Root Mean Squared Error: %s" % ev["rmse"])
+		# Score accuracy
+		test_input_fn = get_input_fn(test_set, num_epochs=1, shuffle=False)
+		ev = nn.evaluate(input_fn=test_input_fn)
+		print("Loss: %s" % ev['loss'])
+		print("Root Mean Squared Error: %s" % ev["rmse"])
 
 
 	# Print out predictions
+
 	predict_input_fn = get_input_fn(prediction_set, num_epochs=1, shuffle=False)
 	predictions = nn.predict(input_fn=predict_input_fn)
 	pred = list()
