@@ -8,7 +8,8 @@ include_once '../StravaApiClient.php';
 include_once 'App.php';
 include_once 'Autoloader.php';
 
-// echo (memory_get_usage()/1024/1024) . "\n";
+
+// echo (memory_get_peak_usage(true)/1024/1024) . "\n";
 
 
 if (isset($_GET['strava_id'])) {
@@ -19,17 +20,19 @@ if (isset($_GET['strava_id'])) {
 
         $athlete = new Athlete($athleteResult[0], 'db');
         if(isset($_GET['load']) && $_GET['load'] == true) { // download new activities from strava
-            $newActivities = Activity::downloadNewActivities($athlete->id, $athlete->token);
+            $numNewActivities = Activity::downloadNewActivities($athlete->id, $athlete->token);
 
-            if(count($newActivities) == 0) {
+            if($numNewActivities == 0) {
                 $_GET['load'] = false;
                 echo 'no more new activities';
             }
         }
 
+        
         if(!isset($_GET['surface'])) {
             $athlete->activities = Activity::loadActivitiesDb($athlete->id); // load available activities from database
         }
+
         if(isset($_GET['load']) && $_GET['load'] == true) {
             $athlete->updateAthlete();
         }
@@ -125,11 +128,11 @@ if(isset($_GET['load']) && $_GET['load'] == true) {
                 <input type="submit" value="Output page">
             </form>';
 
-    echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
-                <input type="hidden" name="strava_id" value="'.$athlete->id.'">
-                <input type="hidden" name="delete_activities" value="true">
-                <input type="submit" value="Delete all activities">
-            </form>';
+    // echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
+    //             <input type="hidden" name="strava_id" value="'.$athlete->id.'">
+    //             <input type="hidden" name="delete_activities" value="true">
+    //             <input type="submit" value="Delete all activities">
+    //         </form>';
     
 
     ### list activities

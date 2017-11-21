@@ -1,5 +1,3 @@
-# coding: utf-8
-
 import numpy as np
 import matplotlib.pyplot as plt 
 import pandas as pd
@@ -20,19 +18,20 @@ def plotkmeans():
 	
 	for c in range(numClusters):
 		cluster = data[data.cluster == c]
-		ax.scatter(cluster['distance'], cluster['elevation'], cluster['time'], c=colors[c], s=5)
+		ax.scatter(cluster['distance'], cluster['elevation'], cluster['ngp'], c=colors[c], s=5)
 
 
 	plt.legend(fontsize="small", loc="upper right")
 	ax.set_xlabel('distance')
 	ax.set_ylabel('elevation')
-	ax.set_zlabel('time')
+	ax.set_zlabel('ngp')
 	plt.grid()
 
 	print(len(data[data.cluster == 5]))
+	print(len(data))
 	
-	fig = plt.figure(figsize=(12, 4), dpi=100, facecolor='w')
-	ax = fig.add_subplot(111, projection='3d')
+	# fig = plt.figure(figsize=(12, 4), dpi=100, facecolor='w')
+	# ax = fig.add_subplot(111, projection='3d')
 
 
 	# cluster = data[data.cluster == 0]

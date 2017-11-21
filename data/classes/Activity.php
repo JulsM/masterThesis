@@ -100,11 +100,19 @@ class Activity {
 			} else {
 				$this->rawDataPoints = unserialize($data['serialized_raw_data_points']);
 			}
-			$this->segments = unserialize($data['serialized_segments']);
+			if($summary) {
+				$this->segments = null;
+			} else {
+				$this->segments = unserialize($data['serialized_segments']);
+			}
 			$this->elevationGain = $data['elevation_gain'];
 			$this->elevationLoss = $data['elevation_loss'];
 			$this->vo2Max = $data['vo2_max'];
-			$this->climbs = unserialize($data['serialized_climbs']);
+			if($summary) {
+				$this->climbs = null;
+			} else {
+				$this->climbs = unserialize($data['serialized_climbs']);
+			}
 			$this->climbScore = $data['climb_score'];
 			$this->percentageHilly = $data['percentage_hilly'];
 			$this->surface = $data['surface'];
@@ -666,16 +674,17 @@ class Activity {
         $app->createStravaApi($token);
         $api = $app->getApi();
         $newStravaActivities = $api->getActivties($stravaDatePast); 
-        $returnObjects = [];
+        $counter = 0;
         foreach ($newStravaActivities as $ac) {
         	$rawStream = $api->getStream($ac['id'], "distance,altitude,latlng,time,velocity_smooth");
         	$activity = new Activity($ac, 'strava', $rawStream);
-        	$returnObjects[] = $activity;
+        	unset($rawStream);
+        	$counter++;
         	// $activity->printActivity();
         	$db->saveActivity($activity, $athleteId);
         }
 
-        return $returnObjects;
+        return $counter;
         
 	}
 
@@ -683,8 +692,7 @@ class Activity {
 		global $db;
 		// echo 'load activities db';
 		$dateInPast = date('Y-m-d H:i:s e',strtotime('-10 years'));
-        $result = $db->getActivities($athleteId, $dateInPast);
-
+        $result = $db->getActivities($athleteId, $dateInPast, null, true);
 
         $returnObjects = [];
         if(count($result) > 0) {

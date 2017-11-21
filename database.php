@@ -106,10 +106,16 @@ class Db
         }
     }
 
-    public function getActivities($athleteId, $from, $to=null) {
+    public function getActivities($athleteId, $from, $to=null, $summary=false) {
         // echo $after;
         $to = ($to == null ? date('Y-m-d H:i:s e',time()) : $to);
-        $query = 'SELECT * FROM activity WHERE athlete_id =' . $athleteId.' AND activity_timestamp >= \''.$from.'\' AND activity_timestamp < \''.$to.'\' ORDER BY activity_timestamp';
+        if($summary) {
+            $query = 'SELECT strava_id, athlete_id, activity_timestamp, name, elapsed_time, distance, average_speed, elevation_gain, elevation_loss, vo2_max, climb_score, percentage_hilly, surface, activity_type, split_type, average_ngp, training_stress_score, pre_activity_atl, pre_activity_ctl FROM activity WHERE athlete_id =' . $athleteId.' AND activity_timestamp >= \''.$from.'\' AND activity_timestamp < \''.$to.'\' ORDER BY activity_timestamp';
+            
+        } else {
+            $query = 'SELECT * FROM activity WHERE athlete_id =' . $athleteId.' AND activity_timestamp >= \''.$from.'\' AND activity_timestamp < \''.$to.'\' ORDER BY activity_timestamp';
+        }
+        
         $result = $this->query($query);
         if (empty($result)) {
             return null;

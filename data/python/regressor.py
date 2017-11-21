@@ -14,12 +14,15 @@ tf.logging.set_verbosity(tf.logging.INFO)
 LEARNING_RATE = 0.01
 
 TRAIN_STEPS = 40000
+BATCH_SIZE = 128
 
-FILE_PATH = "../output/raceFeatures.csv"
+# FILE_PATH = "../output/raceFeatures.csv"
+FILE_PATH = "../output/trainFeatures.csv"
+# FILE_PATH = "../output/activitiesFeatures.csv"
 PRED_PATH = "../output/predictions.csv"
 SAVE_PATH = "temp"
-COLUMNS = ["dist", "elev", "hilly", "cs", "atl", "ctl", "time"]
-FEATURES = ["dist", "elev", "hilly", "cs", "atl", "ctl"]
+COLUMNS = ["dist", "elev", "hilly", "cs", "atl", "ctl", "isRace", "time"]
+FEATURES = ["dist", "elev", "hilly", "cs", "atl", "ctl", "isRace"]
 # FEATURES = ["dist", "elev"]
 LABEL = "time"
 
@@ -56,8 +59,8 @@ def clearOldFiles():
    		tf.gfile.DeleteRecursively(SAVE_PATH) 
 
 def normalize(train, test, pred):
-	label_train = train[LABEL]
-	label_test = test[LABEL]
+	# label_train = train[LABEL]
+	# label_test = test[LABEL]
 
 	# mean, std = train[FEATURES].mean(axis=0), train[FEATURES].std(axis=0, ddof=0)
 	# train = (train[FEATURES] - mean) /std
@@ -83,28 +86,37 @@ def normalize(train, test, pred):
 
 def get_input_fn(data_set, num_epochs=None, shuffle=True):
 	return tf.estimator.inputs.pandas_input_fn(x=pd.DataFrame({k: data_set[k].values for k in FEATURES}), 
-  		y = pd.Series(data_set[LABEL].values), num_epochs=num_epochs, shuffle=shuffle)
+  		y = pd.Series(data_set[LABEL].values), batch_size=BATCH_SIZE, num_epochs=num_epochs, shuffle=shuffle)
+
+
+# def batched_input_fn(data_set, batch_size, num_epochs=None, shuffle=True):
+#     data_set = get_input_fn(data_set, num_epochs, shuffle)
+#     print(data_set)
+        
+#     sliced_input = tf.train.slice_input_producer(data_set)
+#     return tf.train.batch(sliced_input, batch_size=batch_size)
+
 
 
 def loadData():
 	
 
-	data = pd.read_csv(FILE_PATH, skipinitialspace=True, skiprows=1, names=COLUMNS)
+	trainData = pd.read_csv(FILE_PATH, skipinitialspace=True, skiprows=1, names=COLUMNS)
+	testData = pd.read_csv(PRED_PATH, skipinitialspace=True, skiprows=1, names=COLUMNS)
 	predData = pd.read_csv(PRED_PATH, skipinitialspace=True, skiprows=1, names=COLUMNS)
-	# data = data.sample(frac=1).reset_index(drop=True)
-	numRows = len(data.index)
-	train_rows = math.floor(numRows * 0.8)
-	test_rows = numRows - train_rows
-	training_set = data[:train_rows]
-	test_set = data[train_rows:train_rows + test_rows].reset_index(drop=True)
+	# numRows = len(data.index)
+	# train_rows = math.floor(numRows * 1)
+	# test_rows = numRows - train_rows
+	# training_set = data[:train_rows]
+	# test_set = data[train_rows :train_rows + test_rows].reset_index(drop=True)
 	# print(data)
-	print('train size: ',train_rows,' test size: ', test_rows)
+	print('train size: ',len(trainData),' test size: ', len(testData))
 	# print(training_set)
 	# print(test_set)
 	# print(predData)
 
-	training_set = pd.DataFrame(training_set, columns=COLUMNS)
-	test_set = pd.DataFrame(test_set, columns=COLUMNS)
+	training_set = pd.DataFrame(trainData, columns=COLUMNS)
+	test_set = pd.DataFrame(testData, columns=COLUMNS)
 	prediction_set = pd.DataFrame(predData, columns=COLUMNS)
 
 	return training_set, test_set, prediction_set
@@ -126,7 +138,7 @@ def model_fn(features, labels, mode, params):
 
 	# Connect the first hidden layer to second hidden layer with relu
 	hidden_layer = tf.layers.dense(input_layer, 10, activation=tf.nn.relu, 
-		kernel_regularizer=tf.contrib.layers.l1_l2_regularizer(scale_l1=0.9, scale_l2=0.9), name='hidden_1')
+		kernel_regularizer=tf.contrib.layers.l1_l2_regularizer(scale_l1=1.0, scale_l2=1.0), name='hidden_1')
 
 	h1_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'hidden_1')
 	tf.summary.histogram('kernel_1', h1_vars[0])
@@ -141,7 +153,7 @@ def model_fn(features, labels, mode, params):
 
 	# Connect the second hidden layer to first hidden layer with relu
 	hidden_layer = tf.layers.dense(hidden_layer, 10, activation=tf.nn.relu, 
-		kernel_regularizer=tf.contrib.layers.l1_l2_regularizer(scale_l1=0.9, scale_l2=0.9), name='hidden_2')
+		kernel_regularizer=tf.contrib.layers.l1_l2_regularizer(scale_l1=1.0, scale_l2=1.0), name='hidden_2')
 
 	h2_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'hidden_2')
 	tf.summary.histogram('kernel_2', h2_vars[0])
@@ -217,6 +229,7 @@ def main(unused_argv):
 
 	if not predictionOnly:
 		train_input_fn = get_input_fn(training_set, num_epochs=None, shuffle=True)
+		# train_input_fn = batched_input_fn(training_set, 12, num_epochs=None, shuffle=True)
 
 		# Train
 		nn.train(input_fn=train_input_fn, steps=TRAIN_STEPS)

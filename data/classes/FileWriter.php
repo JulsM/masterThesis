@@ -153,11 +153,11 @@ class FileWriter {
 
 		
 	    $list = [];
-	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'finishTime');
+	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'isRace', 'finishTime');
 		for($i = 0; $i < count($activities); $i++) {
 			$ac = $activities[$i];
 			if($ac->activityType == 'race' ) {
-		    	$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $ac->elapsedTime / 60);
+		    	$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, 1, $ac->elapsedTime / 60);
 		    } 
 		    
 		}
@@ -167,12 +167,15 @@ class FileWriter {
 
 	public function writeAllActivitiesFeatures($activities) {	
 
-		
 	    $list = [];
-	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'finishTime');
+	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'isRace', 'finishTime');
 		for($i = 0; $i < count($activities); $i++) {
 			$ac = $activities[$i];
-	    	$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $ac->elapsedTime / 60);
+			$isRace = -1;
+			if($ac->activityType == 'race') {
+				$isRace = 1;
+			}
+	    	$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $isRace, $ac->elapsedTime / 60);
 	    
 		    
 		}
@@ -196,15 +199,31 @@ class FileWriter {
 	}
 
 	public function writeTrainFeatures($activities) {	
-		$clusters = $this->clusterActivities($activities);
-		$taggedAc = $clusters[count($clusters) - 1];
+		$filterdActivities = $this->basicActivityFiltering($activities);
+		$clusters = $this->clusterActivities($filterdActivities);
+		$fastClusters = $clusters['fast_clusters'];
+		// $fastClusters = $this->kmeansActivities($activities);
 		
 	    $list = [];
-	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'finishTime');
-		for($i = 0; $i < count($taggedAc); $i++) {
-			$ac = $taggedAc[$i];
+	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'racePace', 'finishTime');
+		for($i = 0; $i < count($fastClusters); $i++) {
+			$c = $fastClusters[$i];
+			$speeds = array_map(function($a) {return $a->averageNGP;}, $c);
+			$speedMax = max($speeds);
+			$speedMin = min($speeds);
+			// echo $speedMax.' '.$speedMin;
+			for($j = 0; $j < count($c); $j++) {
+				$ac = $c[$j];
+				// $isRace = -1;
+				// if($ac->activityType == 'race') {
+				// 	$isRace = 1;
+				// }
+				$percentRacePace = ($ac->averageNGP - $speedMin) / ($speedMax - $speedMin);
+				$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $percentRacePace, $ac->elapsedTime / 60);
+
+			}
 			
-		    $list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $ac->elapsedTime / 60);
+					    
 		}
 		$this->writeCsv($list, 'trainFeatures');
 
@@ -230,14 +249,26 @@ class FileWriter {
 	public function writekmeans($activities) {	
 		
 		$taggedActivities = $this->clusterActivities($activities);
-		
+		$fastClusters = $taggedActivities['fast_clusters'];
+		// $races = $taggedActivities['races'];
+		$fastCluster = [];
+		foreach ($fastClusters as $fc) {
+			$fastCluster = array_merge($fastCluster, $fc);
+		}
+		// $fastCluster = array_merge($fastCluster, $races);
+		$clusters = array_slice($taggedActivities, 0, -1);
+		$taggedActivities = $clusters;
+
+		$taggedActivities[] = $fastCluster;
+		$taggedActivities = array_values($taggedActivities);
+		// print_r(array_values($taggedActivities));
 		
 	    $list = [];
-	    $list[] = array('distance', 'elevation', 'time', 'cluster');
+	    $list[] = array('distance', 'elevation', 'ngp', 'cluster');
 	    for($c = 0; $c < count($taggedActivities); $c++) {
 			for($i = 0; $i < count($taggedActivities[$c]); $i++) {
 				$ac = $taggedActivities[$c][$i];
-		    	$list[] = array($ac->distance, $ac->elevationGain, $ac->elapsedTime/60, $c);
+		    	$list[] = array($ac->distance, $ac->elevationGain, $ac->averageNGP, $c);
 			    
 			}
 		}
@@ -245,25 +276,51 @@ class FileWriter {
 
 	}
 
-	public function clusterActivities($activities) {
-		$noRaces = [];
-		$races = [];
-		foreach ($activities as $ac) {
-			if($ac->activityType == 'race') {
-				$races[] = $ac;
-			} else {
-				$noRaces[] = $ac;
+	public function basicActivityFiltering($activities) {
+		$filteredActivities = [];
+
+		for($i = 0; $i < count($activities); $i++) {
+			$ac = $activities[$i];
+			if($ac->distance < 2000 || $ac->distance > 50000) {
+				continue;
 			}
+			if($ac->averageNGP < 1.6 || $ac->averageNGP > 7) {
+				continue;
+			}
+			if($ac->averageSpeed < 1.6 || $ac->averageSpeed > 7) {
+				continue;
+			}
+
+			$filteredActivities[] = $ac;
 		}
-		$clusters = $this->kmeansActivities($noRaces);
+
+
+		return $filteredActivities;
+	}
+
+	public function clusterActivities($activities) {
+		// $noRaces = [];
+		// $races = [];
+		// foreach ($activities as $ac) {
+		// 	if($ac->activityType == 'race') {
+		// 		$races[] = $ac;
+		// 	} else {
+		// 		$noRaces[] = $ac;
+		// 	}
+		// }
+		$filterdActivities = $this->basicActivityFiltering($activities);
+		$clusters = $this->kmeansActivities($filterdActivities);
 		$taggedActivities = [];
-		$fastList = [];
+		$fastClusters = [];
+		$i = 0;
 		foreach ($clusters as $c) {
 			$speeds = array_map(function($a) {return $a->averageNGP;}, $c);
 			$speedMean = array_sum($speeds) / count($speeds);
 			$speedMax = max($speeds);
-			$speedThreshold = ($speedMean + $speedMax) / 2;
+			// $speedThreshold = ($speedMean + $speedMax) / 2.05;
+			$speedThreshold = $speedMean;
 			$slowList = [];
+			$fastList = [];
 			foreach ($c as $ac) {
 				if($ac->averageNGP >= $speedThreshold) {
 					$fastList[] = $ac;
@@ -271,11 +328,13 @@ class FileWriter {
 					$slowList[] = $ac;
 				}
 			}
-			$taggedActivities[] = $slowList;
+			$fastClusters[] = $fastList;
+			$taggedActivities['cluster_'.$i] = $slowList;
 			// echo $speedThreshold.' ';
+			$i++;
 		}
-		$selectedActivities = array_merge($fastList, $races);
-		$taggedActivities[] = $selectedActivities;
+		$taggedActivities['fast_clusters'] = $fastClusters;
+		// $taggedActivities['races'] = $races;
 		return $taggedActivities;
 	}
 

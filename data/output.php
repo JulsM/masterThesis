@@ -20,7 +20,11 @@ if (isset($_GET['athlete_id'])) {
         $athlete->activities = Activity::loadActivitiesDb($athlete->id);
     }
 }
-if (isset($_GET['train_features']) && isset($athlete)) {
+if (isset($_GET['race_features']) && isset($athlete)) {
+    echo 'race features';
+    $fileWriter = new FileWriter($athlete->name);
+    $fileWriter->writeRaceFeatures($athlete->activities);
+} else if (isset($_GET['train_features']) && isset($athlete)) {
 	echo 'train features';
 	$fileWriter = new FileWriter($athlete->name);
 	$fileWriter->writeTrainFeatures($athlete->activities);
@@ -37,9 +41,11 @@ if (isset($_GET['train_features']) && isset($athlete)) {
     $fileWriter = new FileWriter($athlete->name);
     $fileWriter->writeAllActivitiesFeatures($athlete->activities);
 } else if (isset($_GET['complete_set'])) {
+    $athlete->activities = array();
     echo 'complete set';
     $db = Db::getInstance();
-    $result = $db->query('SELECT * FROM activity');
+    $query = 'SELECT strava_id, athlete_id, activity_timestamp, name, elapsed_time, distance, average_speed, elevation_gain, elevation_loss, vo2_max, climb_score, percentage_hilly, surface, activity_type, split_type, average_ngp, training_stress_score, pre_activity_atl, pre_activity_ctl FROM activity';
+    $result = $db->query($query);
     $activities = [];
     if(!empty($result)) {
         foreach ($result as $ac) {
@@ -47,13 +53,17 @@ if (isset($_GET['train_features']) && isset($athlete)) {
             $activities[] = $activity;
         }
     }
-    $fileWriter = new FileWriter($athlete->name);
-    $fileWriter->writeActivitySetRelation($athlete->activities);
+    $fileWriter = new FileWriter('Julian Maurer');
+    $fileWriter->writeActivitySetRelation($activities);
 }
 
 
 
-
+echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
+                <input type="hidden" name="athlete_id" value="'.$athlete->id.'">
+                <input type="hidden" name="race_features" value="true">
+                <input type="submit" value="Write race features">
+            </form>';
 echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
                 <input type="hidden" name="athlete_id" value="'.$athlete->id.'">
                 <input type="hidden" name="train_features" value="true">
@@ -77,6 +87,7 @@ echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
 
 echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
                 <input type="hidden" name="complete_set" value="true">
+                <input type="hidden" name="athlete_id" value="'.$athlete->id.'">
                 <input type="submit" value="Write complete activitie set">
             </form>';
 
