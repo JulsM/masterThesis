@@ -205,21 +205,21 @@ class FileWriter {
 		// $fastClusters = $this->kmeansActivities($activities);
 		
 	    $list = [];
-	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'racePace', 'finishTime');
+	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'isRace', 'finishTime');
 		for($i = 0; $i < count($fastClusters); $i++) {
 			$c = $fastClusters[$i];
-			$speeds = array_map(function($a) {return $a->averageNGP;}, $c);
-			$speedMax = max($speeds);
-			$speedMin = min($speeds);
+			// $speeds = array_map(function($a) {return $a->averageNGP;}, $c);
+			// $speedMax = max($speeds);
+			// $speedMin = min($speeds);
 			// echo $speedMax.' '.$speedMin;
 			for($j = 0; $j < count($c); $j++) {
 				$ac = $c[$j];
-				// $isRace = -1;
-				// if($ac->activityType == 'race') {
-				// 	$isRace = 1;
-				// }
-				$percentRacePace = ($ac->averageNGP - $speedMin) / ($speedMax - $speedMin);
-				$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $percentRacePace, $ac->elapsedTime / 60);
+				$isRace = -1;
+				if($ac->activityType == 'race') {
+					$isRace = 1;
+				}
+				// $percentRacePace = ($ac->averageNGP - $speedMin) / ($speedMax - $speedMin);
+				$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $isRace, $ac->elapsedTime / 60);
 
 			}
 			

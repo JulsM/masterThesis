@@ -52,6 +52,8 @@ class Activity {
 
 	public $preCtl;
 
+	public $xWeekSummary;
+
 	public $writeFiles;
 
 
@@ -68,6 +70,7 @@ class Activity {
 			$this->elapsedTime = $data['elapsed_time'];
 			$this->distance = $data['distance'];
 			$this->averageSpeed = $data['average_speed'];
+			// $this->averageSpeed = $data['distance'] / $data['elapsed_time'];
 			$this->rawStream = $rawStream;
 			$this->rawStravaActivity = $data;
 			$dataPoints = $this->generateDataPoints($rawStream);
@@ -84,6 +87,8 @@ class Activity {
 	   		$this->calculateTSS();
 	   		$this->preAtl = Athlete::getATL($this->athleteId, $this->date);
 	   		$this->preCtl = Athlete::getCTL($this->athleteId, $this->date);
+	   		$this->xWeekSummary = new XWeekSummary();
+	   		$this->updateXWeekSummary();
 	   		
 	   	} else {
 	   		$this->id = $data['strava_id'];
@@ -122,6 +127,8 @@ class Activity {
 			$this->tss = $data['training_stress_score'];
 			$this->preAtl = $data['pre_activity_atl'];
 			$this->preCtl = $data['pre_activity_ctl'];
+			$this->xWeekSummary = unserialize($data['serialized_xweek_summary']);
+	   		
 	   	}
     
     	
@@ -482,7 +489,6 @@ class Activity {
 
 		$weeksAfter = date('Y-m-d H:i:s e',strtotime($this->date.' -'.Config::$FTPWeeks.' weeks'));
 		$ftp = 0;
-		
 
 		// avg race pace 10k faster than 45 min
 		$query = 'SELECT * FROM activity WHERE athlete_id =' . $this->athleteId.' AND activity_timestamp >= \''.$weeksAfter.'\' AND activity_type = \'race\' AND distance BETWEEN 9800 AND 10300 ORDER BY elapsed_time LIMIT 1';
@@ -508,7 +514,6 @@ class Activity {
 	        }
         }
 
-
         if($ftp == 0) { // race around 45 - 60 min
         	$query = 'SELECT * FROM activity WHERE athlete_id =' . $this->athleteId.' AND activity_timestamp >= \''.$weeksAfter.'\' AND activity_type = \'race\' AND distance > 10300 AND elapsed_time BETWEEN 2700 AND 3600 ORDER BY elapsed_time LIMIT 1';
         	$result = $db->query($query);
@@ -519,20 +524,23 @@ class Activity {
         	}
 
         }
-		
+
 		if($ftp == 0) { // training around 60 min best time
-        	$query = 'SELECT * FROM activity WHERE athlete_id =' . $this->athleteId.' AND activity_timestamp >= \''.$weeksAfter.'\' AND activity_type != \'race\' AND distance > 10300 AND elapsed_time > 3000 ORDER BY average_speed desc LIMIT 1';
+        	$query = 'SELECT * FROM activity WHERE athlete_id =' . $this->athleteId.' AND activity_timestamp >= \''.$weeksAfter.'\' AND activity_type != \'race\' AND distance > 7000  AND distance < 18000 ORDER BY average_speed desc LIMIT 1';
         	$result = $db->query($query);
         	if(!empty($result)) {
-        		$pred1HourDist = pow((3600 / $result[0]['elapsed_time']), 50/53) * ($result[0]['distance']); 
+        		$movingTime = 1 / $result[0]['average_speed'] * $result[0]['distance'];
+        		// echo $movingTime.' ';
+        		$pred1HourDist = pow((3600 / $movingTime), 50/53) * ($result[0]['distance']);
         		$pred1hourPace = $pred1HourDist / 3600;
+        		// echo $result[0]['elapsed_time'] .' '.$pred1HourDist.' '.$result[0]['average_speed'].' '.$result[0]['distance'];
         		$ftp = $pred1hourPace;
         	}
 
         }
-
+        // echo ' '.(1000/$ftp);
         if($ftp == 0) {
-        	$ftp = 300; // 5:00
+        	$ftp = 330; // 5:30
         }
         return $ftp;
 	}
@@ -651,6 +659,21 @@ class Activity {
         return $SMA;
     }
 
+    public function updateXWeekSummary() {
+    	global $db;
+    	$from = date('Y-m-d H:i:s e',strtotime($this->date.' -'.Config::$XWeeks.' weeks'));
+    	$result = $db->getActivities($this->athleteId, $from, $this->date, true);
+    	$activities = [];
+    	if(!empty($result)) {
+	        foreach ($result as $ac) {
+	        	$activity = new Activity($ac, 'db');
+	        	$activities[] = $activity;
+	        }
+	    }
+    	$summaryObject = Athlete::getXWeekSummary($activities);
+    	$this->xWeekSummary->update($summaryObject);
+    }
+
 
 
 
@@ -752,7 +775,8 @@ class Activity {
 		        $i++;
 		    }
 		}
-	    // echo '<br>';
+	    echo '<br>';
+	    $this->xWeekSummary->printSummary();
 
 	}
 

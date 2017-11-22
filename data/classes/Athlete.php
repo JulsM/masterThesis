@@ -242,6 +242,14 @@ class Athlete {
 		global $db;
 		$xWeeksDate = strtotime('-'.Config::$XWeeks.' weeks');
 		$activities = Activity::getActivitiesAfter($this->activities, $xWeeksDate);
+		$summaryObject = Athlete::getXWeekSummary($activities);
+
+		$this->xWeekSummary->update($summaryObject);
+		$update = "UPDATE athlete SET serialized_x_week_summary = '".serialize($this->xWeekSummary)."' WHERE strava_id = ".$this->id;
+		$db->query($update);
+	}
+
+	public static function getXWeekSummary($activities) {
 
 		$sumMileage = 0;
 		$sumElevation = 0;
@@ -309,9 +317,7 @@ class Athlete {
 								'avgTrainingPace' => $avgTrainingPace,
 								'avgElevation' => $avgElevation);
 
-		$this->xWeekSummary->update($summaryObject);
-		$update = "UPDATE athlete SET serialized_x_week_summary = '".serialize($this->xWeekSummary)."' WHERE strava_id = ".$this->id;
-		$db->query($update);
+		return $summaryObject;
 	}
 
 	public function updateAthlete() {
@@ -340,25 +346,29 @@ class Athlete {
 
 	public function updateAllActivities() {
 		global $db;
-		foreach ($this->activities as $ac) {
-			$result = $db->query('SELECT * FROM activity WHERE strava_id = '.$ac->id);
+		// foreach ($this->activities as $ac) {
+			$result = $db->query('SELECT * FROM activity WHERE athlete_id = '.$this->id.' ORDER BY activity_timestamp ');
+			
 	        if(!empty($result)) {
-	            $activity = new Activity($result[0], 'db', null, false);
-	      //       $activity->determineSplitType();
-		   		// $activity->determineActivityType();
-		   		// $activity->findSegments();
-		   		// $activity->calculateElevationGain();
-		   		// $activity->calculateVo2max();
-		   		// $activity->computePercentageHilly();
-		   		// $activity->findClimbs();
-		   		// $activity->calculateClimbScore();
-	            $activity->calculateNGP();
-		   		$activity->calculateTSS();
-		   		$activity->preAtl = Athlete::getATL($this->id, $activity->date);
-		   		$activity->preCtl = Athlete::getCTL($this->id, $activity->date);
-		   		$db->updateActivity($activity);
+	        	foreach ($result as $r) {
+		            $activity = new Activity($r, 'db', null, true);
+		      //       $activity->determineSplitType();
+			   		// $activity->determineActivityType();
+			   		// $activity->findSegments();
+			   		// $activity->calculateElevationGain();
+			   		// $activity->calculateVo2max();
+			   		// $activity->computePercentageHilly();
+			   		// $activity->findClimbs();
+			   		// $activity->calculateClimbScore();
+		            // $activity->calculateNGP();
+			   		// $activity->calculateTSS();
+			   		// $activity->preAtl = Athlete::getATL($this->id, $activity->date);
+			   		// $activity->preCtl = Athlete::getCTL($this->id, $activity->date);
+			   		// $activity->updateXWeekSummary();
+			   		$db->updateActivity($activity);
+			   	}
 	        }
-	    }
+	    // }
 	}
 
 	public function getNumberActyvityType($type) {

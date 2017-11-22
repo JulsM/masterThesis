@@ -85,16 +85,10 @@ def normalize(train, test, pred):
 
 
 def get_input_fn(data_set, num_epochs=None, shuffle=True):
+	
 	return tf.estimator.inputs.pandas_input_fn(x=pd.DataFrame({k: data_set[k].values for k in FEATURES}), 
   		y = pd.Series(data_set[LABEL].values), batch_size=BATCH_SIZE, num_epochs=num_epochs, shuffle=shuffle)
 
-
-# def batched_input_fn(data_set, batch_size, num_epochs=None, shuffle=True):
-#     data_set = get_input_fn(data_set, num_epochs, shuffle)
-#     print(data_set)
-        
-#     sliced_input = tf.train.slice_input_producer(data_set)
-#     return tf.train.batch(sliced_input, batch_size=batch_size)
 
 
 
@@ -229,7 +223,6 @@ def main(unused_argv):
 
 	if not predictionOnly:
 		train_input_fn = get_input_fn(training_set, num_epochs=None, shuffle=True)
-		# train_input_fn = batched_input_fn(training_set, 12, num_epochs=None, shuffle=True)
 
 		# Train
 		nn.train(input_fn=train_input_fn, steps=TRAIN_STEPS)

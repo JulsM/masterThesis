@@ -44,6 +44,6 @@ class Config {
 	static $maxActivityAgo = -2; //year
 
 	## TSS
-	static $FTPWeeks = 25; // weeks
+	static $FTPWeeks = 20; // weeks
 
 }
