@@ -40,10 +40,14 @@ class Config {
 	static $weeklyMileagePercentLow = 1.2; // 120%,  over 25 km per run
 
 	## athlete summary
-	static $XWeeks = 8; //weeks
+	static $XWeeks = 6; //weeks
 	static $maxActivityAgo = -2; //year
 
 	## TSS
 	static $FTPWeeks = 20; // weeks
+
+	## energy cost model
+	static $maxGrade = 40;
+	static $maxVelocity = 8.33; // 2:00 min/km
 
 }

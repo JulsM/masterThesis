@@ -70,7 +70,10 @@ class Activity {
 			$this->elapsedTime = $data['elapsed_time'];
 			$this->distance = $data['distance'];
 			$this->averageSpeed = $data['average_speed'];
-			// $this->averageSpeed = $data['distance'] / $data['elapsed_time'];
+			if($this->averageSpeed > 5.55) {
+				$this->averageSpeed = $data['distance'] / $data['elapsed_time'];
+			}
+			
 			$this->rawStream = $rawStream;
 			$this->rawStravaActivity = $data;
 			$dataPoints = $this->generateDataPoints($rawStream);
@@ -556,10 +559,11 @@ class Activity {
 		// get energy cost for grades
 		$ngp = [];
 		foreach ($this->rawDataPoints as $p) {
+			// echo ' '.$p->velocity;
 			$p->ngp = $p->velocity * $this->getEnergyCost(round($p->grade/100, 6));
 			$ngp[] = $p->ngp;
 		}
-
+		// print_r($gradeData);
 		// give fast velocities a weightening
 		$lastSegTime = 0;
 		$ngpSegments = [];

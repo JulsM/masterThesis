@@ -16,14 +16,16 @@ LEARNING_RATE = 0.01
 TRAIN_STEPS = 40000
 BATCH_SIZE = 128
 
+
 # FILE_PATH = "../output/raceFeatures.csv"
 FILE_PATH = "../output/trainFeatures.csv"
 # FILE_PATH = "../output/activitiesFeatures.csv"
+# FILE_PATH = "../output/activitySetFeatures.csv"
 PRED_PATH = "../output/predictions.csv"
 SAVE_PATH = "temp"
-COLUMNS = ["dist", "elev", "hilly", "cs", "atl", "ctl", "isRace", "time"]
-FEATURES = ["dist", "elev", "hilly", "cs", "atl", "ctl", "isRace"]
-# FEATURES = ["dist", "elev"]
+COLUMNS = ["dist", "elev", "hilly", "cs", "atl", "ctl", "isRace", "avgVo2max", "time", "avgTrainPace"]
+FEATURES = ["dist", "elev", "hilly", "cs", "atl", "ctl", "isRace", "avgVo2max", "avgTrainPace"]
+
 LABEL = "time"
 
 def plotStatistics():
@@ -40,8 +42,8 @@ def plotStatistics():
 	cax = plt.matshow(dataset.corr(), vmin=-1, vmax=1)
 	plt.colorbar(cax)
 	locs, labs = plt.xticks()
-	plt.xticks(locs[1:-1], COLUMNS)
-	plt.yticks(locs[1:-1], COLUMNS)
+	plt.xticks(np.arange(len(COLUMNS)), COLUMNS)
+	plt.yticks(np.arange(len(COLUMNS)), COLUMNS)
 
 
 	# plt.scatter(dataset['dist'], dataset['CS'])
@@ -195,7 +197,8 @@ def model_fn(features, labels, mode, params):
 
 	# Calculate root mean squared error as additional eval metric
 	eval_metric_ops = {
-	  "rmse": tf.metrics.root_mean_squared_error(tf.cast(labels, tf.float64), tf.cast(predictions, tf.float64))
+	  "rmse": tf.metrics.root_mean_squared_error(tf.cast(labels, tf.float64), tf.cast(predictions, tf.float64)),
+	  "r" : tf.contrib.metrics.streaming_pearson_correlation(tf.cast(predictions, tf.float32), tf.cast(labels, tf.float32))
 	}
 	
 	# Provide an estimator spec for `ModeKeys.EVAL` and `ModeKeys.TRAIN` modes.
@@ -211,7 +214,7 @@ def main(unused_argv):
 
 	training_set, test_set, prediction_set = loadData()
 
-	# prediction_set = pd.DataFrame([(10000, 20, 0.02, 0, 39.5, 45, 37)], columns=COLUMNS)
+	# prediction_set = pd.DataFrame([(42000, 20, 0.1, 0, 44, 65, 1, 43, 180,3.448)], columns=COLUMNS)
 
 	training_set, test_set, prediction_set = normalize(training_set, test_set, prediction_set)
 
@@ -232,6 +235,7 @@ def main(unused_argv):
 		ev = nn.evaluate(input_fn=test_input_fn)
 		print("Loss: %s" % ev['loss'])
 		print("Root Mean Squared Error: %s" % ev["rmse"])
+		print("R: %s" % ev["r"])
 
 
 	# Print out predictions

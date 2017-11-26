@@ -23,11 +23,11 @@ if (isset($_GET['athlete_id'])) {
 if (isset($_GET['race_features']) && isset($athlete)) {
     echo 'race features';
     $fileWriter = new FileWriter($athlete->name);
-    $fileWriter->writeRaceFeatures($athlete->activities);
+    $fileWriter->writeRaceFeatures($athlete->activities, $athlete);
 } else if (isset($_GET['train_features']) && isset($athlete)) {
 	echo 'train features';
 	$fileWriter = new FileWriter($athlete->name);
-	$fileWriter->writeTrainFeatures($athlete->activities);
+	$fileWriter->writeTrainFeatures($athlete->activities, $athlete);
 } else if (isset($_GET['tsb_model']) && isset($athlete)) {
     echo 'tsb model';
     $fileWriter = new FileWriter($athlete->name);
@@ -39,12 +39,12 @@ if (isset($_GET['race_features']) && isset($athlete)) {
 } else if (isset($_GET['all_activities']) && isset($athlete)) {
     echo 'all activities';
     $fileWriter = new FileWriter($athlete->name);
-    $fileWriter->writeAllActivitiesFeatures($athlete->activities);
+    $fileWriter->writeAllActivitiesFeatures($athlete->activities, $athlete);
 } else if (isset($_GET['complete_set'])) {
     $athlete->activities = array();
     echo 'complete set';
     $db = Db::getInstance();
-    $query = 'SELECT strava_id, athlete_id, activity_timestamp, name, elapsed_time, distance, average_speed, elevation_gain, elevation_loss, vo2_max, climb_score, percentage_hilly, surface, activity_type, split_type, average_ngp, training_stress_score, pre_activity_atl, pre_activity_ctl FROM activity';
+    $query = 'SELECT strava_id, athlete_id, activity_timestamp, name, elapsed_time, distance, average_speed, elevation_gain, elevation_loss, vo2_max, climb_score, percentage_hilly, surface, activity_type, split_type, average_ngp, training_stress_score, pre_activity_atl, pre_activity_ctl, serialized_xweek_summary FROM activity';
     $result = $db->query($query);
     $activities = [];
     if(!empty($result)) {
@@ -54,7 +54,7 @@ if (isset($_GET['race_features']) && isset($athlete)) {
         }
     }
     $fileWriter = new FileWriter('Julian Maurer');
-    $fileWriter->writeActivitySetRelation($activities);
+    $fileWriter->writeActivitySetFeatures($activities);
 }
 
 

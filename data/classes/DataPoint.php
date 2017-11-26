@@ -27,7 +27,7 @@ class DataPoint {
 		$this->altitude = $param['alt'];
 		$this->stravaAlt = $param['stravaAlt'];
 		$this->time = $param['time'];
-		$this->velocity = $param['velocity'];
+		$this->velocity = min($param['velocity'], Config::$maxVelocity);
 		$this->grade = 0;
 		$this->ngp = 0;
 
@@ -46,13 +46,15 @@ class DataPoint {
 			$grade = 0;
 			$l = $nextPoint->distance - $prevPoint->distance;
 			if ($l > 0) {
-		        $currentPoint->grade = round(($nextPoint->altitude - $prevPoint->altitude) / $l * 100 / 2, 2);
+				$g = round(($nextPoint->altitude - $prevPoint->altitude) / $l * 100 / 2, 2);
+		        $currentPoint->grade = min(abs($g), Config::$maxGrade);
 		    }
 		}
 
 		$l = $datapoints[count($datapoints)-1]->distance - $datapoints[count($datapoints)-2]->distance;
 		if ($l > 0) {
-		    $datapoints[count($datapoints)-1]->grade = round(($datapoints[count($datapoints)-1]->altitude - $datapoints[count($datapoints)-2]->altitude) / $l * 100 / 2, 2);
+			$g = round(($datapoints[count($datapoints)-1]->altitude - $datapoints[count($datapoints)-2]->altitude) / $l * 100 / 2, 2);
+		    $datapoints[count($datapoints)-1]->grade = min(abs($g), Config::$maxGrade);
 		} 
 		return $datapoints;
 	}

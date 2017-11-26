@@ -276,6 +276,7 @@ class Athlete {
 				$speedworkSumVo2max += $ac->vo2Max;
 			}
 			if($ac->activityType != 'race') {
+				// echo $ac->averageSpeed;
 				$sumTrainingPace += $ac->averageSpeed;
 			}
 
@@ -347,7 +348,7 @@ class Athlete {
 	public function updateAllActivities() {
 		global $db;
 		// foreach ($this->activities as $ac) {
-			$result = $db->query('SELECT * FROM activity WHERE athlete_id = '.$this->id.' ORDER BY activity_timestamp ');
+			$result = $db->query('SELECT * FROM activity WHERE athlete_id = '.$this->id.' ORDER BY activity_timestamp LIMIT 100 OFFSET 200');
 			
 	        if(!empty($result)) {
 	        	foreach ($result as $r) {
@@ -364,7 +365,7 @@ class Athlete {
 			   		// $activity->calculateTSS();
 			   		// $activity->preAtl = Athlete::getATL($this->id, $activity->date);
 			   		// $activity->preCtl = Athlete::getCTL($this->id, $activity->date);
-			   		// $activity->updateXWeekSummary();
+			   		$activity->updateXWeekSummary();
 			   		$db->updateActivity($activity);
 			   	}
 	        }
