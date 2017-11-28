@@ -31,7 +31,7 @@ class StravaApiClient {
         try {
 
             $athlete = $this->client->getAthlete();
-            $data    = array('stravaId' => $athlete['id'], 'mail' => $athlete['email'], 'name' => $athlete['firstname'] . ' ' . $athlete['lastname'], 'token' => $token);
+            $data    = array('stravaId' => $athlete['id'], 'mail' => $athlete['email'], 'name' => $athlete['firstname'] . ' ' . $athlete['lastname'], 'token' => $this->token);
          
         } catch (Exception $e) {
             print $e->getMessage();

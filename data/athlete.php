@@ -102,7 +102,6 @@ if(isset($_GET['load']) && $_GET['load'] == true) {
     $athlete->printAthlete();
 
 
-
     // $athlete->updateAllActivities();
 
     echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
