@@ -120,12 +120,12 @@ def plotXWLongRuns():
 	plt.show()
 
 def plotXWTrainPace():
-	data = pd.read_csv('../output/activitieSetRelation.csv')
+	data = pd.read_csv('../output/activitySetFeatures.csv')
 	
 	plt.figure(figsize=(12, 4), dpi=100, facecolor='w')
 	
-	data = data[data.trainPace != 0]
-	# data = data[data.isRace == 1]
+	data = data[data.avgTrainPace != 0]
+	data = data[(data.isRace == 1) & (data.distance > 20900) & (data.distance > 21300)]
 	print('samples: ',len(data))
 	# fig = plt.figure(figsize=(12, 4), dpi=100, facecolor='w')
 	# ax = fig.add_subplot(111, projection='3d')
@@ -135,12 +135,12 @@ def plotXWTrainPace():
 	# ax.scatter(data['distance'], data['trainPace'], data['time'], c='r', s=2)
 
 
-	plt.scatter(data['trainPace'], data['ngp'], c='grey', s=2, label='')
+	plt.scatter(data['avgTrainPace'], data['time'], c='grey', s=2, label='')
 	
 	plt.legend(fontsize="small", loc="upper right")
 	plt.grid()
-	plt.xlabel('trainPace')
-	plt.ylabel('NGP')
+	plt.xlabel('avgTrainPace')
+	plt.ylabel('time')
 
 	plt.show()
 
@@ -174,7 +174,7 @@ def plotXWAvgVo2max():
 # plotXWElevation()
 # plotXWSpeedwork()
 # plotXWLongRuns()
-# plotXWTrainPace()
-plotXWAvgVo2max()
+plotXWTrainPace()
+# plotXWAvgVo2max()
 
 # plotSet()

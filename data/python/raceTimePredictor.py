@@ -17,17 +17,19 @@ class RaceTimePredictor:
 		self.FLAGS = {'learning_rate': 0.01,
 						'training_steps': 40000,
 						'batch_size': 128,
-						'model_path': "tf_checkpoints/"}
+						'model_path': "tf_checkpoints/",
+						'data_path' : 'kmeans'}
 		for key in FLAGS:
 			self.FLAGS[key] = FLAGS[key]
 
+		self.pathDict = {'races' : "../output/raceFeatures.csv",
+					'kmeans': "../output/trainFeatures.csv",
+					'all': "../output/activitiesFeatures.csv",
+					'set' : "../output/activitySetFeatures.csv",
+					'pred' : "../output/predictions.csv"}
 		
-		
-		# self.FEATURE_PATH = "../output/raceFeatures.csv"
-		self.FEATURE_PATH = "../output/trainFeatures.csv"
-		# self.FEATURE_PATH = "../output/activitiesFeatures.csv"
-		# self.FEATURE_PATH = "../output/activitySetFeatures.csv"
-		self.PRED_PATH = "../output/predictions.csv"
+		self.FEATURE_PATH = self.pathDict[self.FLAGS['data_path']]
+		self.PRED_PATH = self.pathDict['pred']
 		self.COLUMNS = ["dist", "elev", "hilly", "cs", "atl", "ctl", "isRace", "avgVo2max", "time", "avgTrainPace"]
 		self.FEATURES = ["dist", "elev", "hilly", "cs", "atl", "ctl", "isRace", "avgVo2max", "avgTrainPace"]
 
@@ -35,6 +37,7 @@ class RaceTimePredictor:
 
 		self.training_set = None
 		self.test_set = None
+
 
 		
 
@@ -207,9 +210,9 @@ class RaceTimePredictor:
 		# Score accuracy
 		test_input_fn = self.get_input_fn(self.test_set, num_epochs=1, shuffle=False)
 		ev = self.estimator.evaluate(input_fn=test_input_fn)
-		print("\nLoss: %s" % ev['loss'])
-		print("Root Mean Squared Error: %s" % ev["rmse"])
-		print("R: %s" % ev["r"])
+		print("Loss: %s" % ev['loss'])
+		print("Root Mean Squared Error: %s\n" % ev["rmse"])
+		# print("R: %s" % ev["r"])
 		return ev
 
 
@@ -235,11 +238,12 @@ class RaceTimePredictor:
 
 
 	def trainCrossValidated(self, kfold):
+		print('Load Data\n')
 		self.train_data = self.loadTrainData()
 		self.clearOldFiles()
 		kfoldLosses = []
 		kfoldRmse = []
-
+		print('Start training\n')
 		for i in range(kfold):
 			model_params = {"learning_rate": self.FLAGS['learning_rate']}
 			self.estimator = tf.estimator.Estimator(model_fn=self.model_fn, params=model_params, model_dir=self.FLAGS['model_path']+'temp_'+str(i))
@@ -260,26 +264,86 @@ class RaceTimePredictor:
 
 
 	def trainStandard(self):
-		self.train_set = self.loadTrainData()
+		print('Load Data\n')
+		self.training_set = self.loadTrainData()
 		self.clearOldFiles()
 
 		model_params = {"learning_rate": self.FLAGS['learning_rate']}		
 		self.estimator = tf.estimator.Estimator(model_fn=self.model_fn, params=model_params, model_dir=self.FLAGS['model_path']+'temp')
 
-		self.std_scaler = preprocessing.StandardScaler().fit(self.train_set[self.FEATURES])
-		self.training_set = self.normalize(self.train_set)
-		self.trainPredictor()
+		self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[self.FEATURES])
+		self.training_set = self.normalize(self.training_set)
 
 		test_data = pd.read_csv(self.PRED_PATH, skipinitialspace=True, skiprows=1, names=self.COLUMNS)
 		test_set = pd.DataFrame(test_data, columns=self.COLUMNS)
 		self.test_set = self.normalize(test_set)
+		print('train size: ',len(self.training_set), ' test size: ', len(self.test_set))
+
+		print('Start training\n')
+		self.trainPredictor()
+
 		self.evaluatePredictor()
 
 		self.predictTimes()
+
+	def trainWithPretraining(self, kfold):
+		print('Pre-train Set\n')
+		self.FEATURE_PATH = self.pathDict['set']
+		self.training_set = self.loadTrainData()
+		print('train size: ',len(self.training_set))
+		self.clearOldFiles()
+
+		model_params = {"learning_rate": self.FLAGS['learning_rate']}
+		self.estimator = tf.estimator.Estimator(model_fn=self.model_fn, params=model_params, model_dir=self.FLAGS['model_path']+'pretrain')
+		self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[self.FEATURES])
+		self.training_set = self.normalize(self.training_set)
+		print('Start training\n')
+		self.trainPredictor()
+
+		print('Pre-train kmeans\n')
+		self.FEATURE_PATH = self.pathDict['kmeans']
+		self.training_set = self.loadTrainData()
+		print('train size: ',len(self.training_set))
+		self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[self.FEATURES])
+		self.training_set = self.normalize(self.training_set)
+		print('Start training\n')
+		self.trainPredictor()
+
+		### copy pre-trained model to kfold folders
+		for i in range(kfold):
+			src = self.FLAGS['model_path']+'pretrain'
+			dst = self.FLAGS['model_path']+'temp_'+str(i)
+			shutil.copytree(src, dst)
+
+		
+		print('Train races\n')
+		self.FEATURE_PATH = self.pathDict['races']
+		self.train_data = self.loadTrainData()
+		kfoldLosses = []
+		kfoldRmse = []
+		print('Start training\n')
+		for i in range(kfold):
+			model_params = {"learning_rate": self.FLAGS['learning_rate']}
+			self.estimator = tf.estimator.Estimator(model_fn=self.model_fn, params=model_params, model_dir=self.FLAGS['model_path']+'temp_'+str(i))
+
+			self.splitKFold(kfold, i)
+			self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[self.FEATURES])
+			self.training_set = self.normalize(self.training_set)
+			self.test_set = self.normalize(self.test_set)
+			
+			self.trainPredictor()
+			metrics = self.evaluatePredictor()
+			kfoldLosses.append(metrics['loss'])
+			kfoldRmse.append(metrics['rmse'])
+
+		print("\nMean loss for %s-fold cross validation: %s" % (kfold, np.mean(kfoldLosses)))
+		print("Mean RMSE for %s-fold cross validation: %s" % (kfold, np.mean(kfoldRmse)))
+		self.predictTimes()
 		
 def main(unused_argv):
-	predictor = RaceTimePredictor({'training_steps': 40000})
-	predictor.trainCrossValidated(3)
+	predictor = RaceTimePredictor({'training_steps': 40000, 'data_path' : 'all'})
+	predictor.trainWithPretraining(4)
+	# predictor.trainCrossValidated(4)
 	# predictor.trainStandard()
 
 if __name__ == "__main__":

@@ -88,7 +88,7 @@ echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
 echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
                 <input type="hidden" name="complete_set" value="true">
                 <input type="hidden" name="athlete_id" value="'.$athlete->id.'">
-                <input type="submit" value="Write complete activitie set">
+                <input type="submit" value="Write complete activity set">
             </form>';
 
 ?>

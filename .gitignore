@@ -4,3 +4,5 @@ output
 /data/.htaccess
 /sftp-config.json
 temp
+tf_checkpoints
+.ipynb_checkpoints

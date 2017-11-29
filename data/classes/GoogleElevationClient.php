@@ -111,7 +111,8 @@ class GoogleElevationClient
                 echo 'Google Elevation API error '.$json->status; 
                 exit; 
             }
-            $jsonResults = array_merge($jsonResults, $json->results);
+            // $jsonResults = array_merge($jsonResults, $json->results);
+            $jsonResults += $json->results;
     
         }
         return $jsonResults;
