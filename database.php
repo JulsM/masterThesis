@@ -97,7 +97,20 @@ class Db
     {
         $timestamp = date('Y-m-d H:i:s e');
         try {
-            $statement = "UPDATE activity SET elapsed_time = ".$activity->elapsedTime.", distance = ".$activity->distance.", average_speed = ".$activity->averageSpeed.", elevation_gain = ".$activity->elevationGain.", elevation_loss = ".$activity->elevationLoss.", vo2_max = ".$activity->vo2Max.", percentage_hilly = ".$activity->percentageHilly.", surface = '".$activity->surface."', activity_type = '".$activity->activityType."', split_type = '".$activity->splitType."', update_timestamp = '".$timestamp."', climb_score = ".$activity->climbScore.", serialized_segments = '".serialize($activity->segments)."', serialized_climbs = '".serialize($activity->climbs)."', average_ngp = ".$activity->averageNGP.", training_stress_score = ".$activity->tss.", pre_activity_atl = ".$activity->preAtl.", pre_activity_ctl = ".$activity->preCtl.", serialized_xweek_summary = '".serialize($activity->xWeekSummary)."' WHERE strava_id = ".$activity->id.";";
+            $statement = "UPDATE activity SET elapsed_time = ".$activity->elapsedTime.", distance = ".$activity->distance.", average_speed = ".$activity->averageSpeed.", elevation_gain = ".$activity->elevationGain.", elevation_loss = ".$activity->elevationLoss.", vo2_max = ".$activity->vo2Max.", percentage_hilly = ".$activity->percentageHilly.", surface = '".$activity->surface."', activity_type = '".$activity->activityType."', split_type = '".$activity->splitType."', update_timestamp = '".$timestamp."', climb_score = ".$activity->climbScore.", average_ngp = ".$activity->averageNGP.", training_stress_score = ".$activity->tss.", pre_activity_atl = ".$activity->preAtl.", pre_activity_ctl = ".$activity->preCtl.", serialized_xweek_summary = '".serialize($activity->xWeekSummary)."' WHERE strava_id = ".$activity->id.";";
+            
+            $result = pg_query($this->connection, $statement);
+            
+        } catch(Exception $e) {
+            echo $e->getMessage();
+        }
+    }
+
+    public function updateSegmentsClimbsActivity($activity)
+    {
+        $timestamp = date('Y-m-d H:i:s e');
+        try {
+            $statement = "UPDATE activity SET serialized_segments = '".serialize($activity->segments)."', serialized_climbs = '".serialize($activity->climbs)."' WHERE strava_id = ".$activity->id.";";
             
             $result = pg_query($this->connection, $statement);
             

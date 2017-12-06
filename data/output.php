@@ -53,8 +53,18 @@ if (isset($_GET['race_features']) && isset($athlete)) {
             $activities[] = $activity;
         }
     }
-    $fileWriter = new FileWriter('Julian Maurer');
-    $fileWriter->writeActivitySetFeatures($activities);
+    $fileWriter = new FileWriter($athlete->name);
+    $fileWriter->writeActivitySetFeatures($activities, $athlete->id);
+} else if (isset($_GET['segments'])) {
+    echo 'segment features';
+    // $athlete->activities = null;
+    // $athlete->activities = Activity::loadActivitiesDb($athlete->id, false);
+    $fileWriter = new FileWriter($athlete->name);
+    $fileWriter->writeSegmentFeatures($athlete->activities);
+} else if (isset($_GET['prediction'])) {
+    echo 'prediction data';
+    $fileWriter = new FileWriter($athlete->name);
+    $fileWriter->writePredictionData($athlete);
 }
 
 
@@ -91,6 +101,17 @@ echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
                 <input type="submit" value="Write complete activity set">
             </form>';
 
+echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
+                <input type="hidden" name="segments" value="true">
+                <input type="hidden" name="athlete_id" value="'.$athlete->id.'">
+                <input type="submit" value="Write segments">
+            </form>';
+
+echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
+                <input type="hidden" name="prediction" value="true">
+                <input type="hidden" name="athlete_id" value="'.$athlete->id.'">
+                <input type="submit" value="Write prediction data">
+            </form>';
 ?>
 </div>
 </body>

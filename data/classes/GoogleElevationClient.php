@@ -100,7 +100,8 @@ class GoogleElevationClient
      */
     public function fetchJSON()
     {
-        $jsonResults = array();
+
+        $jsonResults = [];
         $urlArray = $this->buildURL('json');
         foreach ($urlArray as $url) {
             // echo strlen($url). ' ';
@@ -111,9 +112,10 @@ class GoogleElevationClient
                 echo 'Google Elevation API error '.$json->status; 
                 exit; 
             }
-            // $jsonResults = array_merge($jsonResults, $json->results);
-            $jsonResults += $json->results;
-    
+            
+            foreach($json->results as $i) {
+                $jsonResults[] = $i->elevation;
+            }
         }
         return $jsonResults;
     }

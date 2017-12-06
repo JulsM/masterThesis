@@ -153,11 +153,12 @@ class FileWriter {
 
 		
 	    $list = [];
-	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'isRace', 'avgVo2max', 'time', 'avgTrainPace');
+	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'isRace', 'avgVo2max', 'time', 'avgTrainPace', 'gender');
 		for($i = 0; $i < count($activities); $i++) {
 			$ac = $activities[$i];
+			$gender = ($athlete->gender == 'M') ? 1 : -1;
 			if($ac->activityType == 'race' ) {
-		    	$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, 1, $ac->xWeekSummary->averageVo2Max, $ac->elapsedTime / 60, $athlete->averageTrainingPace);
+		    	$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, 1, $ac->xWeekSummary->averageVo2Max, $ac->elapsedTime / 60, $athlete->averageTrainingPace, $gender);
 		    } 
 		    
 		}
@@ -170,26 +171,26 @@ class FileWriter {
 		$clusters = $this->clusterActivities($filterdActivities);
 		$fastClusters = $clusters['fast_clusters'];
 		// $fastClusters = $this->kmeansActivities($activities);
-		
-	    $list = [];
-	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'isRace', 'avgVo2max', 'time', 'avgTrainPace');
+		$fastActivities = [];
 		for($i = 0; $i < count($fastClusters); $i++) {
 			$c = $fastClusters[$i];
 			for($j = 0; $j < count($c); $j++) {
-				$ac = $c[$j];
-				$isRace = -1;
-				if($ac->activityType == 'race') {
-					$isRace = 1;
-				}
-				if($ac->activityType == 'race' && $ac->athleteId == 20874330) {
-					continue;
-				}
-				
-				$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $isRace, $ac->xWeekSummary->averageVo2Max, $ac->elapsedTime / 60, $athlete->averageTrainingPace);
-
-			}
+				$fastActivities[] = $c[$j];
+			}	    
+		}
+		$fastActivities = $this->sortActivitiesByDate($fastActivities);
+	    $list = [];
+	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'isRace', 'avgVo2max', 'time', 'avgTrainPace', 'gender');
+		for($i = 0; $i < count($fastActivities); $i++) {
+			$ac = $fastActivities[$i];
+			$isRace = ($ac->activityType == 'race') ? 1 : -1;
+			$gender = ($athlete->gender == 'M') ? 1 : -1;
 			
-					    
+			// if($ac->activityType == 'race') {
+			// 	continue;
+			// }
+			
+			$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $isRace, $ac->xWeekSummary->averageVo2Max, $ac->elapsedTime / 60, $athlete->averageTrainingPace, $gender);
 		}
 		$this->writeCsv($list, 'trainFeatures');
 
@@ -198,14 +199,12 @@ class FileWriter {
 	public function writeAllActivitiesFeatures($activities, $athlete) {	
 
 	    $list = [];
-	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'isRace', 'avgVo2max', 'time','avgTrainPace');
+	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'isRace', 'avgVo2max', 'time','avgTrainPace', 'gender');
 		for($i = 0; $i < count($activities); $i++) {
 			$ac = $activities[$i];
-			$isRace = -1;
-			if($ac->activityType == 'race') {
-				$isRace = 1;
-			}
-	    	$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $isRace, $ac->xWeekSummary->averageVo2Max, $ac->elapsedTime / 60, $athlete->averageTrainingPace);
+			$isRace = ($ac->activityType == 'race') ? 1 : -1;
+			$gender = ($athlete->gender == 'M') ? 1 : -1;
+	    	$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $isRace, $ac->xWeekSummary->averageVo2Max, $ac->elapsedTime / 60, $athlete->averageTrainingPace, $gender);
 	    
 		    
 		}
@@ -213,33 +212,33 @@ class FileWriter {
 
 	}
 
-	public function writeActivitySetFeatures($activities) {	
+	public function writeActivitySetFeatures($activities, $athleteId) {	
 		global $db;
 		$activities = $this->basicActivityFiltering($activities);
 		
 	    $list = [];
-	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'isRace', 'avgVo2max', 'time', 'avgTrainPace');
+	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'isRace', 'avgVo2max', 'time', 'avgTrainPace', 'gender');
 	    $athleteId = 0;
 		for($i = 0; $i < count($activities); $i++) {
 
 			$ac = $activities[$i];
 			if($athleteId != $ac->athleteId) {
-				$avgSpeed = $db->query('SELECT average_training_pace FROM athlete WHERE strava_id =' . $ac->athleteId)[0]['average_training_pace'];
+				$result = $db->query('SELECT average_training_pace, gender FROM athlete WHERE strava_id =' . $ac->athleteId);
+				$avgSpeed = $result[0]['average_training_pace'];
+				$gender = ($result[0]['gender'] == 'M' ? 1 : -1);
 				$athleteId = $ac->athleteId;
 			}
 			// if($ac->activityType == 'speedwork') {
 			// 	continue;
 			// }
-			if($ac->activityType == 'race' && $ac->athleteId == 20874330) {
+			if($ac->activityType == 'race' && $ac->athleteId == $athleteId) {
 				continue;
 			}
 			
 			
-			$isRace = -1;
-			if($ac->activityType == 'race') {
-				$isRace = 1;
-			}
-	    	$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $isRace, $ac->xWeekSummary->averageVo2Max, $ac->elapsedTime / 60, $avgSpeed);
+			$isRace = ($ac->activityType == 'race') ? 1 : -1;
+			
+	    	$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $isRace, $ac->xWeekSummary->averageVo2Max, $ac->elapsedTime / 60, $avgSpeed, $gender);
 	    
 		    
 		}
@@ -247,65 +246,57 @@ class FileWriter {
 
 	}
 
-	public function writePretrainingFeatures($activitySet, $athlete) {	
-		$head = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'isRace', 'avgVo2max', 'finishTime', 'avgTrainPace');
+
+	public function writeSegmentFeatures($activities) {	
 		global $db;
 		$filterdActivities = $this->basicActivityFiltering($activities);
-		
-	    $list = [];
-	    $list[] = $head;
-	    $athleteId = 0;
-		for($i = 0; $i < count($filterdActivities); $i++) {
-
-			$ac = $filterdActivities[$i];
-			if($athleteId != $ac->athleteId) {
-				$avgSpeed = $db->query('SELECT average_training_pace FROM athlete WHERE strava_id =' . $ac->athleteId)[0]['average_training_pace'];
-				$athleteId = $ac->athleteId;
-			}
-			// if($ac->activityType == 'speedwork') {
-			// 	continue;
-			// }
-			$isRace = -1;
-			if($ac->activityType == 'race') {
-				$isRace = 1;
-			}
-	    	$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $isRace, $ac->xWeekSummary->averageVo2Max, $ac->elapsedTime / 60, $avgSpeed);
-	    
-		    
-		}
-		$this->writeCsv($list, 'activitySetFeatures');
-
-		### kmeans
 		$clusters = $this->clusterActivities($filterdActivities);
 		$fastClusters = $clusters['fast_clusters'];
 		
 	    $list = [];
-	    $list[] = $head;
+	    $list[] = array('activityDistance', 'activityTime', 'activityElevation', 'isRace', 'segStartDist', 'segEndDist', 'segLength', 'segGrade', 'segElevation', 'segTime');
 		for($i = 0; $i < count($fastClusters); $i++) {
 			$c = $fastClusters[$i];
 			for($j = 0; $j < count($c); $j++) {
 				$ac = $c[$j];
-				$isRace = -1;
-				if($ac->activityType == 'race') {
-					$isRace = 1;
+				$isRace = ($ac->activityType == 'race') ? 1 : -1;
+				$result = $db->query('SELECT serialized_segments FROM activity WHERE strava_id =' . $ac->id);
+				$segments = unserialize($result[0]['serialized_segments']);
+				$elevationDone = 0;
+				for($m = 0; $m < count($segments); $m++) {
+					$seg = $segments[$m];
+					$segLength = $seg->end->distance - $seg->start->distance;
+					$segTime = $seg->end->time - $seg->start->time;
+					$elevationDone = ($seg->elevation > 0) ? $elevationDone + $seg->elevation : $elevationDone;
+					$list[] = array($ac->distance, $ac->elapsedTime, $ac->elevationGain, $isRace, $seg->start->distance, $seg->end->distance, $segLength, $seg->gradient, $seg->elevation, $segTime);
 				}
-				$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $isRace, $ac->xWeekSummary->averageVo2Max, $ac->elapsedTime / 60, $athlete->averageTrainingPace);
-			}	    
-		}
-		$this->writeCsv($list, 'trainFeatures');
 
-		### races
-		$list = [];
-	    $list[] = $head;
-		for($i = 0; $i < count($activities); $i++) {
-			$ac = $activities[$i];
-			if($ac->activityType == 'race' ) {
-		    	$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, 1, $ac->xWeekSummary->averageVo2Max, $ac->elapsedTime / 60, $athlete->averageTrainingPace);
-		    } 
-		    
+			}
+			
+					    
 		}
-		$this->writeCsv($list, 'raceFeatures');
+		$this->writeCsv($list, 'segmentFeatures');
+
 	}
+
+	public function writePredictionData($athlete) {
+		$list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'isRace', 'avgVo2max', 'time', 'avgTrainPace', 'gender');
+		$vo2max = $athlete->xWeekSummary->averageVo2Max;
+		$gender = ($athlete->gender == 'M') ? 1 : -1;
+		$list[] = array(5000,0,0,0,30,45,1,$vo2max,17.5,$athlete->averageTrainingPace,$gender);
+		$list[] = array(5000,70,0.1,0.2,30,45,1,$vo2max,19,$athlete->averageTrainingPace,$gender);
+		$list[] = array(5000,150,0.3,1.5,30,45,1,$vo2max,22,$athlete->averageTrainingPace,$gender);
+		$list[] = array(10000,0,0,0,30,45,1,$vo2max,36.5,$athlete->averageTrainingPace,$gender);
+		$list[] = array(10000,70,0.3,0.5,30,45,1,$vo2max,39,$athlete->averageTrainingPace,$gender);
+		$list[] = array(10000,150,0.5,1.5,30,45,1,$vo2max,41,$athlete->averageTrainingPace,$gender);
+		$list[] = array(21097,0,0,0,30,45,1,$vo2max,79,$athlete->averageTrainingPace,$gender);
+		$list[] = array(21097,70,0.3,0.5,30,45,1,$vo2max,81,$athlete->averageTrainingPace,$gender);
+		$list[] = array(21097,150,0.4,1.5,30,50,1,$vo2max,85,$athlete->averageTrainingPace,$gender);
+		$list[] = array(42195,0,0,0,30,50,1,$vo2max,170,$athlete->averageTrainingPace,$gender);
+		$list[] = array(42195,150,0.5,1,30,50,1,$vo2max,185,$athlete->averageTrainingPace,$gender);
+		$this->writeCsv($list, 'predictions');
+	}
+	
 
 	
 
@@ -382,6 +373,19 @@ class FileWriter {
 
 
 		return $filteredActivities;
+	}
+
+	public function sortActivitiesByDate($activities) {
+		// foreach ($activities as $ac) {
+		// 	echo $ac->date.'<br>';
+		// }
+		usort($activities, function($a, $b) {
+		   return strtotime($a->date) - strtotime($b->date);
+		});
+		// foreach ($activities as $ac) {
+		// 	echo $ac->date.'<br>';
+		// }
+		return $activities;
 	}
 
 	public function clusterActivities($activities) {

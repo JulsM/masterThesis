@@ -8,7 +8,7 @@ from sklearn import preprocessing
 
 
 def plotSet():
-	data = pd.read_csv('../output/activitieSetRelation.csv')
+	data = pd.read_csv('../output/activitySetFeatures.csv')
 	print('samples: ',len(data))
 	colors = ['red', 'blue', 'green', 'yellow', 'cyan', 'grey', 'purple', 'coral', 'k', 'saddlebrown']
 	
@@ -31,7 +31,7 @@ def plotSet():
 	
 
 def plotElevSpeed():
-	data = pd.read_csv('../output/activitieSetRelation.csv')
+	data = pd.read_csv('../output/activitySetFeatures.csv')
 	print('samples: ',len(data))
 	plt.figure(figsize=(12, 4), dpi=100, facecolor='w')
 	for i in range(8, 80):
@@ -47,7 +47,7 @@ def plotElevSpeed():
 	plt.show()
 
 def plotXWWeeklyMileage():
-	data = pd.read_csv('../output/activitieSetRelation.csv')
+	data = pd.read_csv('../output/activitySetFeatures.csv')
 	print('samples: ',len(data))
 	plt.figure(figsize=(12, 4), dpi=100, facecolor='w')
 	# data = data[data.isRace == 1]
@@ -62,7 +62,7 @@ def plotXWWeeklyMileage():
 	plt.show()
 
 def plotXWElevation():
-	data = pd.read_csv('../output/activitieSetRelation.csv')
+	data = pd.read_csv('../output/activitySetFeatures.csv')
 	print('samples: ',len(data))
 	plt.figure(figsize=(12, 4), dpi=100, facecolor='w')
 	for i in range(0, 30):
@@ -82,7 +82,7 @@ def plotXWElevation():
 	plt.show()
 
 def plotXWSpeedwork():
-	data = pd.read_csv('../output/activitieSetRelation.csv')
+	data = pd.read_csv('../output/activitySetFeatures.csv')
 	print('samples: ',len(data))
 	plt.figure(figsize=(12, 4), dpi=100, facecolor='w')
 	data = data[data.isRace == 1]
@@ -97,20 +97,21 @@ def plotXWSpeedwork():
 	plt.show()
 
 def plotXWLongRuns():
-	data = pd.read_csv('../output/activitieSetRelation.csv')
+	data = pd.read_csv('../output/activitySetFeatures.csv')
 	print('samples: ',len(data))
 	plt.figure(figsize=(12, 4), dpi=100, facecolor='w')
-	data = data[data.distance > 9500]
-	# data = data[data.isRace == 1]
+	data = data[data.isRace == 1]
+	data = data[(data.isRace == 1) & (data.distance > 20900) & (data.distance > 21300)]
+	
 
 
 			
-	for i in range(18, 80):
-		filtered = data[(data.distance > i * 1000 - 500) & (data.distance < i * 1000 + 500)]
-		if len(filtered > 0):
-			std_scale = preprocessing.StandardScaler().fit(filtered[['time']])
-			filtered[['time']] = std_scale.transform(filtered[['time']])
-			plt.scatter(filtered['long'], filtered['time'], c='grey', s=2, label='')
+	# for i in range(18, 80):
+	# 	filtered = data[(data.distance > i * 1000 - 500) & (data.distance < i * 1000 + 500)]
+	# 	if len(filtered > 0):
+	# 		std_scale = preprocessing.StandardScaler().fit(filtered[['time']])
+	# 		filtered[['time']] = std_scale.transform(filtered[['time']])
+	# 		plt.scatter(filtered['long'], filtered['time'], c='grey', s=2, label='')
 	
 	plt.legend(fontsize="small", loc="upper right")
 	plt.grid()
@@ -125,7 +126,7 @@ def plotXWTrainPace():
 	plt.figure(figsize=(12, 4), dpi=100, facecolor='w')
 	
 	data = data[data.avgTrainPace != 0]
-	data = data[(data.isRace == 1) & (data.distance > 20900) & (data.distance > 21300)]
+	data = data[(data.isRace == 1) & (data.distance > 9900) & (data.distance < 10300)]
 	print('samples: ',len(data))
 	# fig = plt.figure(figsize=(12, 4), dpi=100, facecolor='w')
 	# ax = fig.add_subplot(111, projection='3d')
@@ -145,11 +146,12 @@ def plotXWTrainPace():
 	plt.show()
 
 def plotXWAvgVo2max():
-	data = pd.read_csv('../output/activitieSetRelation.csv')
+	data = pd.read_csv('../output/activitySetFeatures.csv')
 	
 	plt.figure(figsize=(12, 4), dpi=100, facecolor='w')
 	
-	data = data[data.vo2max != 0]
+	data = data[data.avgVo2max != 0]
+	data = data[(data.isRace == 1) & (data.distance > 9900) & (data.distance < 10300)]
 	# data = data[data.isRace == 1]
 	print('samples: ',len(data))
 	# fig = plt.figure(figsize=(12, 4), dpi=100, facecolor='w')
@@ -157,15 +159,15 @@ def plotXWAvgVo2max():
 
 	
 	
-	# ax.scatter(data['distance'], data['trainPace'], data['time'], c='r', s=2)
+	# ax.scatter(data['distance'], data['avgVo2max'], data['time'], c='r', s=2)
 
 
-	plt.scatter(data['vo2max'], data['ngp'], c='grey', s=2, label='')
+	plt.scatter(data['avgVo2max'], data['time'], c='grey', s=2, label='')
 	
 	plt.legend(fontsize="small", loc="upper right")
 	plt.grid()
-	plt.xlabel('vo2max')
-	plt.ylabel('NGP')
+	plt.xlabel('avgVo2max')
+	plt.ylabel('time')
 
 	plt.show()
 
@@ -174,7 +176,7 @@ def plotXWAvgVo2max():
 # plotXWElevation()
 # plotXWSpeedwork()
 # plotXWLongRuns()
-plotXWTrainPace()
-# plotXWAvgVo2max()
+# plotXWTrainPace()
+plotXWAvgVo2max()
 
 # plotSet()

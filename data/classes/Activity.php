@@ -155,7 +155,7 @@ class Activity {
 	    	$param = array('lat' => $latlongArray[$i][0],
 	    				   'long' => $latlongArray[$i][1],
 	    				   'dist' => $distanceArray[$i],
-	    				   'alt' => $googleElevation[$i]->elevation,
+	    				   'alt' => $googleElevation[$i],
 	    				   'stravaAlt' => $stravaElevation[$i],
 	    				   'time' => $timeArray[$i],
 	    				   'velocity' => $velocityArray[$i]);
@@ -715,16 +715,16 @@ class Activity {
         
 	}
 
-	public static function loadActivitiesDb($athleteId) {
+	public static function loadActivitiesDb($athleteId, $summary=true) {
 		global $db;
 		// echo 'load activities db';
 		$dateInPast = date('Y-m-d H:i:s e',strtotime('-10 years'));
-        $result = $db->getActivities($athleteId, $dateInPast, null, true);
+        $result = $db->getActivities($athleteId, $dateInPast, null, $summary);
 
         $returnObjects = [];
         if(count($result) > 0) {
 	        foreach ($result as $ac) {
-	        	$activity = new Activity($ac, 'db');
+	        	$activity = new Activity($ac, 'db', null, $summary);
 	        	$returnObjects[] = $activity;
 	        }
 	    }
@@ -732,6 +732,8 @@ class Activity {
         return $returnObjects;
         
 	}
+
+
 
 
     public static function getActivitiesAfter($activities, $timestamp) {

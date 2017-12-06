@@ -348,11 +348,11 @@ class Athlete {
 	public function updateAllActivities() {
 		global $db;
 		// foreach ($this->activities as $ac) {
-			$result = $db->query('SELECT * FROM activity WHERE athlete_id = '.$this->id.' ORDER BY activity_timestamp LIMIT 100 OFFSET 200');
+			$result = $db->query('SELECT * FROM activity WHERE athlete_id = '.$this->id.' ORDER BY activity_timestamp ');
 			
 	        if(!empty($result)) {
 	        	foreach ($result as $r) {
-		            $activity = new Activity($r, 'db', null, true);
+		            $activity = new Activity($r, 'db', null, false);
 		      //       $activity->determineSplitType();
 			   		// $activity->determineActivityType();
 			   		// $activity->findSegments();
@@ -365,8 +365,9 @@ class Athlete {
 			   		// $activity->calculateTSS();
 			   		// $activity->preAtl = Athlete::getATL($this->id, $activity->date);
 			   		// $activity->preCtl = Athlete::getCTL($this->id, $activity->date);
-			   		$activity->updateXWeekSummary();
-			   		$db->updateActivity($activity);
+			   		// $activity->updateXWeekSummary();
+			   		// $db->updateActivity($activity);
+			   		// $db->updateSegmentsClimbsActivity($activity);
 			   	}
 	        }
 	    // }
