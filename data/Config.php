@@ -4,7 +4,7 @@ class Config {
 
 
 	## API
-	static $numOfActivities = 4;
+	static $numOfActivities = 6;
 
 	## Clean Google data
 	static $cleanMinDist = 5; // meters
@@ -15,17 +15,19 @@ class Config {
 
 	## Compute Segments
 	static $lowGradientThreshold = 1.8; // %
-	static $highGradientThreshold = 4.5;
-	static $lowGradientThresholdRecomp = 1;
-	static $highGradientThresholdRecomp = 4;
+	static $highGradientThreshold = 5;
+	static $steepGradientThreshold = 17;
+	static $lowGradientThresholdRecomp = 1.8;
+	static $highGradientThresholdRecomp = 5;
+	static $steepGradientThresholdRecomp = 17;
 
 	## Segments Filter
 	static $minSegmentLength = 200; // meters
-	static $maxSegmentGradient = 7.5; // %
+	static $maxSegmentGradient = 30; // %
 
 	## climbs
 	static $minClimbLength = 400; // meters
-	static $minClimbGradient = 2; // %
+	static $minClimbGradient = 4; // %
 	static $maxDistDownBetween = 250; // meters
 	static $hillySegmentThreshold = 2; // %
 

@@ -67,7 +67,11 @@ class Activity {
 			$this->athleteId = $data['athlete']['id'];
 			$this->date = $data['start_date'];
 			$this->name = $data['name'];
-			$this->elapsedTime = $data['elapsed_time'];
+			if($data['elapsed_time'] > $data['moving_time'] * 1.3) {
+				$this->elapsedTime = $data['moving_time'];
+			} else {
+				$this->elapsedTime = $data['elapsed_time'];
+			}
 			$this->distance = $data['distance'];
 			$this->averageSpeed = $data['average_speed'];
 			if($this->averageSpeed > 5.55) {

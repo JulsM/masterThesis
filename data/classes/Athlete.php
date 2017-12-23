@@ -348,26 +348,26 @@ class Athlete {
 	public function updateAllActivities() {
 		global $db;
 		// foreach ($this->activities as $ac) {
-			$result = $db->query('SELECT * FROM activity WHERE athlete_id = '.$this->id.' ORDER BY activity_timestamp ');
+			$result = $db->query('SELECT * FROM activity WHERE athlete_id = '.$this->id.' ORDER BY activity_timestamp LIMIT 200 OFFSET 0');
 			
 	        if(!empty($result)) {
 	        	foreach ($result as $r) {
 		            $activity = new Activity($r, 'db', null, false);
 		      //       $activity->determineSplitType();
 			   		// $activity->determineActivityType();
-			   		// $activity->findSegments();
-			   		// $activity->calculateElevationGain();
-			   		// $activity->calculateVo2max();
-			   		// $activity->computePercentageHilly();
-			   		// $activity->findClimbs();
-			   		// $activity->calculateClimbScore();
+			   		$activity->findSegments();
+			   		$activity->calculateElevationGain();
+			   		$activity->calculateVo2max();
+			   		$activity->computePercentageHilly();
+			   		$activity->findClimbs();
+			   		$activity->calculateClimbScore();
 		            // $activity->calculateNGP();
 			   		// $activity->calculateTSS();
 			   		// $activity->preAtl = Athlete::getATL($this->id, $activity->date);
 			   		// $activity->preCtl = Athlete::getCTL($this->id, $activity->date);
-			   		// $activity->updateXWeekSummary();
-			   		// $db->updateActivity($activity);
-			   		// $db->updateSegmentsClimbsActivity($activity);
+			   		$activity->updateXWeekSummary();
+			   		$db->updateActivity($activity);
+			   		$db->updateSegmentsClimbsActivity($activity);
 			   	}
 	        }
 	    // }

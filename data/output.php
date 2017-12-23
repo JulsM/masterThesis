@@ -65,6 +65,16 @@ if (isset($_GET['race_features']) && isset($athlete)) {
     echo 'prediction data';
     $fileWriter = new FileWriter($athlete->name);
     $fileWriter->writePredictionData($athlete);
+} else if (isset($_GET['athletes'])) {
+    echo 'athletes data';
+    $names = "'Julian Maurer','Florian Daiber','Joachim Groß','Kerstin de Vries','Tom Holzweg','Thomas Buyse 2090944408008','Torsten Kohlwey','Markus Pfarrkircher','Alexander Lüdemann','DI RK','Yen Mertens 2090951579081','David Chow 2090380755056','Poekie .  * 2090532345791','Benedikt Schilling','Falk Hofmann','Yvonne Dauwalder 🇨🇭','Heiko Ⓥ G.','Donato Lattarulo','Alexander Probst','Marcel Großer','Rebecca Buckingham','Simon Weig','Robert Kühne','Kevin Grimwood','Torsten Baldes','Julia Habitzreither','Alexander Weidenhaupt','Timo Maurer','Kevin Klawitter'";
+    $athleteResult = $db->query('SELECT * FROM athlete WHERE name IN ('.$names.')');
+    $athletes = [];
+    for($i = 0; $i < count($athleteResult); $i++) { // athlete in database
+        $athletes[] = new Athlete($athleteResult[$i], 'db');
+    }
+    $fileWriter = new FileWriter($athlete->name);
+    $fileWriter->writeAthletes($athletes);
 }
 
 
@@ -111,6 +121,11 @@ echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
                 <input type="hidden" name="prediction" value="true">
                 <input type="hidden" name="athlete_id" value="'.$athlete->id.'">
                 <input type="submit" value="Write prediction data">
+            </form>';
+echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
+                <input type="hidden" name="athletes" value="true">
+                <input type="hidden" name="athlete_id" value="'.$athlete->id.'">
+                <input type="submit" value="Write athletes data">
             </form>';
 ?>
 </div>

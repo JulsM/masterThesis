@@ -26,16 +26,16 @@ def plotDifferenceElev():
 	plt.show()
 
 
-def plotCleanedupElev():
-	cleanData = np.genfromtxt('../output/originalData.csv', delimiter=',', skip_header=1)
-	rdpData = np.genfromtxt('../output/rdp.csv', delimiter=',')
-	segmentData = np.genfromtxt('../output/segments.csv', delimiter=',')
-	filteredSegmentData = np.genfromtxt('../output/filteredSegments.csv', delimiter=',')
-	recompSegmentData = np.genfromtxt('../output/recomputedSegments.csv', delimiter=',')
+def plotCleanedupElev(athlete):
+	cleanData = np.genfromtxt('../output/'+athlete+'/originalData.csv', delimiter=',', skip_header=1)
+	rdpData = np.genfromtxt('../output/'+athlete+'/rdp.csv', delimiter=',')
+	segmentData = np.genfromtxt('../output/'+athlete+'/segments.csv', delimiter=',')
+	filteredSegmentData = np.genfromtxt('../output/'+athlete+'/filteredSegments.csv', delimiter=',')
+	recompSegmentData = np.genfromtxt('../output/'+athlete+'/recomputedSegments.csv', delimiter=',')
 	climbs = []
 	climbs.append([])
 	climbs.append([])
-	with open('../output/climbs.csv') as f:
+	with open('../output/'+athlete+'/climbs.csv') as f:
 		lines=f.readlines()
 		for line in lines:
 			l = np.fromstring(line, dtype=float, sep=',')
@@ -64,5 +64,5 @@ def plotCleanedupElev():
 
 	plt.show()
 
-plotCleanedupElev()
+plotCleanedupElev('Torsten Kohlwey')
 # plotDifferenceElev()

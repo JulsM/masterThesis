@@ -16,29 +16,25 @@ class SegmentPredictor:
 
 		self.FLAGS = {'learning_rate': 0.01,
 						'training_steps': 40000,
-						'batch_size': 128,
+						'batch_size': 256,
 						'model_path': "tf_segments/",
-						'data_path' : 'kmeans'}
+						'data_path' : 'kmeans',
+						'athlete' : 'Julian Maurer'}
 		for key in FLAGS:
 			self.FLAGS[key] = FLAGS[key]
 
-		self.pathDict = {'kmeans': "../output/segmentFeatures.csv",
-					'pred' : "../output/segmentPredictions.csv"}
+		self.pathDict = {'kmeans': "../output/"+self.FLAGS['athlete']+"/segmentFeatures.csv",
+					'pred' : "../output/"+self.FLAGS['athlete']+"/segmentPredictions.csv"}
 		
 		self.FEATURE_PATH = self.pathDict[self.FLAGS['data_path']]
 		self.PRED_PATH = self.pathDict['pred']
-		self.COLUMNS = ['activityDistance', 'activityTime', 'activityElevation', 'isRace', 'segStartDist', 'segEndDist', 'segLength', 'segGrade', 'segElevation', 'segTime']
-		self.FEATURES = ['activityDistance', 'activityTime', 'activityElevation', 'isRace', 'segStartDist', 'segEndDist', 'segLength', 'segGrade', 'segElevation']
+		self.COLUMNS = ['id', 'activityDistance', 'activityTime', 'activityElevation', 'isRace', 'segStartDist', 'segEndDist', 'segLength', 'segGrade', 'elevGainDone', 'segTime']
+		self.FEATURES = ['activityDistance', 'activityElevation', 'isRace', 'segStartDist', 'segLength', 'segGrade', 'elevGainDone']
 
 		self.LABEL = "segTime"
 
 		self.training_set = None
 		self.test_set = None
-
-
-		
-
-		
 
 	
 
@@ -62,18 +58,13 @@ class SegmentPredictor:
 		plt.show()
 
 	def clearOldFiles(self):
-		filelist = [ f for f in os.listdir(self.FLAGS['model_path'])]
-		for f in filelist:
-			# os.chmod(os.path.join(self.FLAGS['model_path'], f), 777)
-			shutil.rmtree(os.path.join(self.FLAGS['model_path'], f))
-		# if tf.gfile.Exists(self.FLAGS['model_path']):
-	 #   		tf.gfile.DeleteRecursively(self.FLAGS['model_path']) 
+		if(os.path.isdir(self.FLAGS['model_path']+self.FLAGS['athlete'])):
+			filelist = [ f for f in os.listdir(self.FLAGS['model_path']+self.FLAGS['athlete']+'/')]
+			for f in filelist:
+				shutil.rmtree(os.path.join(self.FLAGS['model_path']+self.FLAGS['athlete']+'/', f)) 
 
-	def normalize(self, data):
-		# mean, std = train[FEATURES].mean(axis=0), train[FEATURES].std(axis=0, ddof=0)
-		
+	def normalize(self, data):		
 		data[self.FEATURES] = self.std_scaler.transform(data[self.FEATURES])
-		# print(data)
 		return data
 
 
@@ -85,26 +76,29 @@ class SegmentPredictor:
 		return train_data
 
 	def splitKFold(self, k, i):
-		# print(self.train_data)
 		races = self.train_data[self.train_data.isRace == 1]
-		noRaces = pd.DataFrame(self.train_data[self.train_data.isRace == -1], columns=self.COLUMNS)
-		foldLen = int(len(races) / k)
+		train = pd.DataFrame(self.train_data[self.train_data.isRace == -1], columns=self.COLUMNS)
+		uniqueIds = races.id.unique()
+		foldLen = int(len(uniqueIds) / k)
 		start = i * foldLen
 		if i + 1 == k:
-			end = len(races)
+			end = len(uniqueIds)
 		else:
 			end = (i + 1) * foldLen
-		# print('len races: ', len(races))
+
+		ids = uniqueIds[start:end]
+		# print(ids)
+		test = races[races.id.isin(ids)]
+		train = train.append(races[~races.id.isin(ids)])
+		# print(test)
+		# print('len train: ', len(train))
+		# print('len test: ', len(test))
 		# print(start, end)
-		# print(races)
-		test = races[start:end]
-		train = races[0:start]
-		train = train.append(races[end:])
+		# print(len(self.train_data))
 		
 		self.test_set = pd.DataFrame(test, columns=self.COLUMNS).reset_index(drop=True)
-		self.training_set = noRaces.append(train).reset_index(drop=True)
+		self.training_set = pd.DataFrame(train, columns=self.COLUMNS).reset_index(drop=True)
 		# print(self.training_set, self.test_set)
-		print('train size: ',len(self.training_set), ' test size: ', len(self.test_set))
 
 
 
@@ -123,7 +117,7 @@ class SegmentPredictor:
 
 
 		# Connect the first hidden layer to second hidden layer with relu
-		hidden_layer = tf.layers.dense(input_layer, 10, activation=tf.nn.relu, 
+		hidden_layer = tf.layers.dense(input_layer, 5, activation=tf.nn.elu, 
 			kernel_regularizer=tf.contrib.layers.l1_l2_regularizer(scale_l1=1.0, scale_l2=1.0), name='hidden_1')
 
 		h1_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'hidden_1')
@@ -132,23 +126,23 @@ class SegmentPredictor:
 		tf.summary.histogram('activation_1', hidden_layer)
 
 		if mode == tf.estimator.ModeKeys.TRAIN:
-			hidden_layer = tf.layers.dropout(hidden_layer, rate=0.3, name='dropout_1')
+			hidden_layer = tf.layers.dropout(hidden_layer, rate=0.75, name='dropout_1')
 			tf.summary.scalar('dropout_1', tf.nn.zero_fraction(hidden_layer))
 
 
 
 		# Connect the second hidden layer to first hidden layer with relu
-		hidden_layer = tf.layers.dense(hidden_layer, 10, activation=tf.nn.relu, 
-			kernel_regularizer=tf.contrib.layers.l1_l2_regularizer(scale_l1=1.0, scale_l2=1.0), name='hidden_2')
+		# hidden_layer = tf.layers.dense(hidden_layer, 5, activation=tf.nn.elu, 
+		# 	kernel_regularizer=tf.contrib.layers.l1_l2_regularizer(scale_l1=1.0, scale_l2=1.0), name='hidden_2')
 
-		h2_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'hidden_2')
-		tf.summary.histogram('kernel_2', h2_vars[0])
-		tf.summary.histogram('bias_2', h2_vars[1])
-		tf.summary.histogram('activation_2', hidden_layer)
+		# h2_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'hidden_2')
+		# tf.summary.histogram('kernel_2', h2_vars[0])
+		# tf.summary.histogram('bias_2', h2_vars[1])
+		# tf.summary.histogram('activation_2', hidden_layer)
 
-		if mode == tf.estimator.ModeKeys.TRAIN:
-			hidden_layer = tf.layers.dropout(hidden_layer, rate=0.3, name='dropout_2')
-			tf.summary.scalar('dropout_2', tf.nn.zero_fraction(hidden_layer))
+		# if mode == tf.estimator.ModeKeys.TRAIN:
+		# 	hidden_layer = tf.layers.dropout(hidden_layer, rate=0.35, name='dropout_2')
+		# 	tf.summary.scalar('dropout_2', tf.nn.zero_fraction(hidden_layer))
 
 
 
@@ -172,6 +166,8 @@ class SegmentPredictor:
 		
 		tf.summary.scalar("reg_loss", reg_losses[0])
 		tf.summary.scalar("train_error", loss)
+		tf.summary.scalar("accuracy", tf.reduce_mean(1 - tf.divide(tf.abs(tf.cast(labels, tf.float64) - tf.cast(predictions, tf.float64)), tf.cast(labels, tf.float64))))
+		tf.summary.scalar("RMSE", tf.sqrt(loss))
 
 
 
@@ -185,15 +181,17 @@ class SegmentPredictor:
 
 		# Calculate root mean squared error as additional eval metric
 		eval_metric_ops = {
-		  "rmse": tf.metrics.root_mean_squared_error(tf.cast(labels, tf.float64), tf.cast(predictions, tf.float64)),
-		  "r" : tf.contrib.metrics.streaming_pearson_correlation(tf.cast(predictions, tf.float32), tf.cast(labels, tf.float32))
+			"mse" : tf.metrics.mean_squared_error(tf.cast(labels, tf.float64), tf.cast(predictions, tf.float64)),
+			"rmse": tf.metrics.root_mean_squared_error(tf.cast(labels, tf.float64), tf.cast(predictions, tf.float64)),
+			"accuracy" : tf.metrics.mean(1 - tf.divide(tf.abs(tf.cast(labels, tf.float64) - tf.cast(predictions, tf.float64)), tf.cast(labels, tf.float64))),
+			"mae" : tf.metrics.mean_absolute_error(tf.cast(labels, tf.float64), tf.cast(predictions, tf.float64))
 		}
 		
 		# Provide an estimator spec for `ModeKeys.EVAL` and `ModeKeys.TRAIN` modes.
 		return tf.estimator.EstimatorSpec(mode=mode, loss=loss, train_op=train_op, eval_metric_ops=eval_metric_ops)
 
 
-		return EstimatorSpec(mode, predictions, loss, train_op, eval_metric_ops)
+		
 
 
 	def trainPredictor(self):
@@ -205,16 +203,18 @@ class SegmentPredictor:
 
 	def evaluatePredictor(self):
 		# Score accuracy
-		train_input_fn = self.get_input_fn(self.training_set, num_epochs=1, shuffle=False)
-		ev = self.estimator.evaluate(input_fn=train_input_fn)
-		print('Train set evaluation')
-		print("Loss: %s" % ev['loss'])
-		print("Root Mean Squared Error: %s\n" % ev["rmse"])
+		# train_input_fn = self.get_input_fn(self.training_set, num_epochs=1, shuffle=False)
+		# ev = self.estimator.evaluate(input_fn=train_input_fn)
+		# print('Train set evaluation')
+		# print("Mean Squared Error: %s sec" % ev['mse'])
+		# print("Root Mean Squared Error: %s sec\n" % ev["rmse"])
 		test_input_fn = self.get_input_fn(self.test_set, num_epochs=1, shuffle=False)
 		ev = self.estimator.evaluate(input_fn=test_input_fn)
 		print('Test set evaluation')
-		print("Loss: %s" % ev['loss'])
-		print("Root Mean Squared Error: %s\n" % ev["rmse"])
+		print("Mean Squared Error: %s sec" % ev['mse'])
+		print("Mean Absolute Error: %s sec" % ev['mae'])
+		print("Root Mean Squared Error: %s sec" % ev["rmse"])
+		print("Accuracy: {:.2f} % \n".format(ev['accuracy'] * 100))
 		# print("R: %s" % ev["r"])
 		return ev
 
@@ -223,7 +223,9 @@ class SegmentPredictor:
 		print('\nPredictions\n')
 		pred_data = pd.read_csv(self.PRED_PATH, skipinitialspace=True, skiprows=1, names=self.COLUMNS)
 		prediction_set = pd.DataFrame(pred_data.copy(), columns=self.COLUMNS)
-		print(prediction_set)
+		f = list(self.FEATURES)
+		f.append(self.LABEL)
+		print(prediction_set[f])
 		prediction_set = self.normalize(prediction_set)
 
 		predict_input_fn = self.get_input_fn(prediction_set, num_epochs=1, shuffle=False)
@@ -235,44 +237,145 @@ class SegmentPredictor:
 			racetime += p[self.LABEL]
 			vel = round((pred_data['segEndDist'][i] - pred_data['segStartDist'][i]) / p[self.LABEL], 2)
 			vel = str(int(1000/vel / 60)) + ':'+str(int(1000/vel % 60))
-			print("+/- Seconds: %s sec, Velocity: %s min/km" % (round((p[self.LABEL] - prediction_set[self.LABEL][i]), 2), vel))
-		print("Predicted race time: %s sec, actual race time: %s sec" % ( round(racetime, 2), pred_data['activityTime'][0]))
+			accuracy = round((1 - (abs(p[self.LABEL] - prediction_set[self.LABEL][i]) / prediction_set[self.LABEL][i])) * 100, 2)
+			print("+/- Seconds: %s sec, Velocity: %s min/km, Similarity: %s %%" % (round((p[self.LABEL] - prediction_set[self.LABEL][i]), 2), vel, accuracy))
+		accuracy = round((1 - (abs(racetime - pred_data['activityTime'][0]) / pred_data['activityTime'][0])) * 100, 2)
+		print("Predicted time: %s sec, actual time: %s sec, Accuracy: %s %%" % ( round(racetime, 2), pred_data['activityTime'][0], accuracy))
 	
-
-
-	def trainCrossValidated(self, kfold):
-		print('Load Data\n')
-		self.train_data = self.loadTrainData()
-		self.clearOldFiles()
-		kfoldLosses = []
+	def crossValidation(self, kfold):
+		kfoldMse = []
 		kfoldRmse = []
+		kfoldAccuracy = []
+		kfoldMae = []
+		activityMse = []
+		activityRmse = []
+		activityAccuracy = []
+		activityMae = []
+		activitySimilarity = []
 		print('Start training\n')
 		for i in range(kfold):
+			print('Iteration ', i+1)
 			model_params = {"learning_rate": self.FLAGS['learning_rate']}
-			self.estimator = tf.estimator.Estimator(model_fn=self.model_fn, params=model_params, model_dir=self.FLAGS['model_path']+'temp_'+str(i))
+			self.estimator = tf.estimator.Estimator(model_fn=self.model_fn, params=model_params, model_dir=self.FLAGS['model_path']+self.FLAGS['athlete']+'/temp_'+str(i))
 
 			self.splitKFold(kfold, i)
+			print('train size: ',len(self.training_set), ' test size: ', len(self.test_set))
 			self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[self.FEATURES])
 			self.training_set = self.normalize(self.training_set)
 			self.test_set = self.normalize(self.test_set)
 			
 			self.trainPredictor()
 			metrics = self.evaluatePredictor()
-			kfoldLosses.append(metrics['loss'])
+			kfoldMse.append(metrics['mse'])
 			kfoldRmse.append(metrics['rmse'])
+			kfoldAccuracy.append(metrics['accuracy'])
+			kfoldMae.append(metrics['mae'])
+			mse, rmse, mae, meanAcc, meanSim = self.evalActivities()
+			activityMse.append(mse)
+			activityRmse.append(rmse)
+			activityMae.append(mae)
+			activityAccuracy.append(meanAcc)
+			activitySimilarity.append(meanSim)
 
-		print("\nMean loss for %s-fold cross validation: %s" % (kfold, np.mean(kfoldLosses)))
-		print("Mean RMSE for %s-fold cross validation: %s" % (kfold, np.mean(kfoldRmse)))
-		self.predictTimes()
+		print('\nMean Segment Metrics for {}-fold cross validation:'.format(kfold))
+		print("MSE: {:.2f} sec\nMAE: {:.2f} sec\nRMSE: {:.2f} sec\nAccuracy: {:.2f} %".format(np.mean(kfoldMse), np.mean(kfoldMae), np.mean(kfoldRmse), np.mean(kfoldAccuracy) * 100))
+		print('\nMean Activity Metrics for {}-fold cross validation:'.format(kfold))
+		print("MSE: {:.2f} min\nMAE: {:.2f} min\nRMSE: {:.2f} min\nAccuracy: {:.2f} %\nSimilarity: {:.2f} %".format(np.mean(activityMse), np.mean(activityMae), np.mean(activityRmse), np.mean(activityAccuracy), np.mean(activitySimilarity)))
 
+		return np.mean(kfoldMse), np.mean(kfoldMae), np.mean(kfoldRmse), np.mean(kfoldAccuracy), np.mean(activityMse), np.mean(activityMae), np.mean(activityRmse), np.mean(activityAccuracy), np.mean(activitySimilarity)
+
+	def evalActivities(self):
+		errors = []
+		accuracies = []
+		similarities = []
+		uniqueIds = self.test_set.id.unique()
+		for i in uniqueIds:
+			prediction_set = pd.DataFrame(self.test_set[self.test_set.id == i], columns=self.COLUMNS).reset_index(drop=True)
+			predict_input_fn = self.get_input_fn(prediction_set, num_epochs=1, shuffle=False)
+			predictions = self.estimator.predict(input_fn=predict_input_fn)
+		
+			predTime = 0
+			similarity = []
+			for j, p in enumerate(predictions):
+				predTime += p[self.LABEL]
+				sim = round((1 - (abs(p[self.LABEL] - prediction_set[self.LABEL][j]) / prediction_set[self.LABEL][j])) * 100, 2)
+				similarity.append(sim)
+
+			activity = self.train_data[self.train_data.id == i]
+			activityTime = activity['activityTime'].iloc[0]
+			activityDistance = activity['activityDistance'].iloc[0]
+			accuracy = round((1 - (abs(predTime - activityTime) / activityTime)) * 100, 2)
+			print('Activity race time Prediction:');
+			print("Predicted time: %s min, actual time: %s min, distance: %s km, Accuracy: %s %%, Similarity: %s %%" % ( round(predTime/60, 2), round(activityTime/60, 2), round(activityDistance/1000,2), accuracy, round(np.mean(similarity), 2)))
+			errors.append((activityTime - predTime) / 60)
+			accuracies.append(accuracy)
+			similarities.append(np.mean(similarity))
+		
+		
+		mse = np.mean(np.power(errors, 2))
+		rmse = np.sqrt(mse)
+		mae = np.mean(np.absolute(errors))
+			
+		print('\nMean activity Metrics:')
+		print("MSE: {:.2f} min\nMAE: {:.2f} min\nRMSE: {:.2f} min\nAccuracy: {:.2f} %\nSimilarity: {:.2f} %\n".format(mse, mae, rmse, np.mean(accuracies), np.mean(similarities)))
+		return mse, rmse, mae, np.mean(accuracies), np.mean(similarities)
+
+
+	def trainCrossValidated(self, kfold):
+		print('Load Data\n')
+		self.train_data = self.loadTrainData()
+		self.clearOldFiles()
+		self.crossValidation(kfold)
+
+	def crossValidateAll(self, dictAthletes):
+		athleteMse = []
+		athleteRmse = []
+		athleteAccuracy = []
+		athleteMae = []
+		athleteActivityMse = []
+		athleteActivityRmse = []
+		athleteActivityAccuracy = []
+		athleteActivityMae = []
+		athleteActivitySimilarity = []
+		athleteName = []
+		for athlete, kfold in dictAthletes.items():
+
+			self.FLAGS['athlete'] = athlete
+			self.pathDict = {'kmeans': "../output/"+self.FLAGS['athlete']+"/segmentFeatures.csv",
+					'pred' : "../output/"+self.FLAGS['athlete']+"/segmentPredictions.csv"}
+			self.FEATURE_PATH = self.pathDict[self.FLAGS['data_path']]
+			self.train_data = self.loadTrainData()
+			self.clearOldFiles()
+			print('\n\nAthlete ', athlete)
+			kfoldMse, kfoldMae, kfoldRmse, kfoldAccuracy, activityMse, activityMae, activityRmse, activityAccuracy, activitySimilarity = self.crossValidation(kfold)
+
+			athleteMse.append(kfoldMse)
+			athleteRmse.append(kfoldRmse)
+			athleteAccuracy.append(kfoldAccuracy)
+			athleteMae.append(kfoldMae)
+			athleteActivityMse.append(activityMse)
+			athleteActivityMae.append(activityMae)
+			athleteActivityRmse.append(activityRmse)
+			athleteActivityAccuracy.append(activityAccuracy)
+			athleteActivitySimilarity.append(activitySimilarity)
+			athleteName.append(athlete)
+
+
+		print('\nMean Segment Metrics over all athletes:')
+		print("MSE: {:.2f} sec\nMAE: {:.2f} sec\nRMSE: {:.2f} sec\nAccuracy: {:.2f} %".format(np.mean(athleteMse), np.mean(athleteMae), np.mean(athleteRmse), np.mean(athleteAccuracy) * 100))
+		print('\nMean Activity Metrics over all athletes:')
+		print("MSE: {:.2f} min\nMAE: {:.2f} min\nRMSE: {:.2f} min\nAccuracy: {:.2f} %\nSimilarity: {:.2f} %".format(np.mean(athleteActivityMse), np.mean(athleteActivityMae), np.mean(athleteActivityRmse), np.mean(athleteActivityAccuracy), np.mean(athleteActivitySimilarity)))
+		np.savetxt('athleteSegmentCrossVal.csv', np.column_stack((athleteActivityMae,athleteActivityRmse,athleteActivityAccuracy, athleteActivitySimilarity,athleteName)), header='MAE, RMSE, Accuracy, Similarity, Name', delimiter=',', fmt="%s")
+
+				
+	
 
 	def trainStandard(self):
-		print('Load Data\n')
 		self.training_set = self.loadTrainData()
 		self.clearOldFiles()
 
 		model_params = {"learning_rate": self.FLAGS['learning_rate']}		
-		self.estimator = tf.estimator.Estimator(model_fn=self.model_fn, params=model_params, model_dir=self.FLAGS['model_path']+'temp')
+		self.estimator = tf.estimator.Estimator(model_fn=self.model_fn, params=model_params, model_dir=self.FLAGS['model_path']+self.FLAGS['athlete']+'/temp')
 
 		self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[self.FEATURES])
 		self.training_set = self.normalize(self.training_set)
@@ -289,64 +392,51 @@ class SegmentPredictor:
 
 		self.predictTimes()
 
-	def trainWithPretraining(self, kfold):
-		print('Pre-train Set\n')
-		self.FEATURE_PATH = self.pathDict['set']
-		self.training_set = self.loadTrainData()
-		print('train size: ',len(self.training_set))
-		self.clearOldFiles()
-		model_params = {"learning_rate": self.FLAGS['learning_rate']}
-		self.estimator = tf.estimator.Estimator(model_fn=self.model_fn, params=model_params, model_dir=self.FLAGS['model_path']+'pretrain')
-		self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[self.FEATURES])
-		self.training_set = self.normalize(self.training_set)
-		print('Start training\n')
-		self.trainPredictor()
-
-		print('Pre-train kmeans\n')
-		self.FEATURE_PATH = self.pathDict['kmeans']
-		# self.training_set = self.loadTrainData()
-		# print('train size: ',len(self.training_set))
-		# self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[self.FEATURES])
-		# self.training_set = self.normalize(self.training_set)
-		# print('Start training\n')
-		# self.trainPredictor()
-
-		### copy pre-trained model to kfold folders
-		for i in range(kfold):
-			src = self.FLAGS['model_path']+'pretrain'
-			dst = self.FLAGS['model_path']+'temp_'+str(i)
-			shutil.copytree(src, dst)
-
-		
-		# print('Train races\n')
-		# self.FEATURE_PATH = self.pathDict['races']
-		self.train_data = self.loadTrainData()
-		kfoldLosses = []
-		kfoldRmse = []
-		print('Start training\n')
-		for i in range(kfold):
-			model_params = {"learning_rate": self.FLAGS['learning_rate']}
-			self.estimator = tf.estimator.Estimator(model_fn=self.model_fn, params=model_params, model_dir=self.FLAGS['model_path']+'temp_'+str(i))
-
-			self.splitKFold(kfold, i)
-			self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[self.FEATURES])
-			self.training_set = self.normalize(self.training_set)
-			self.test_set = self.normalize(self.test_set)
-			
-			self.trainPredictor()
-			metrics = self.evaluatePredictor()
-			kfoldLosses.append(metrics['loss'])
-			kfoldRmse.append(metrics['rmse'])
-
-		print("\nMean loss for %s-fold cross validation: %s" % (kfold, np.mean(kfoldLosses)))
-		print("Mean RMSE for %s-fold cross validation: %s" % (kfold, np.mean(kfoldRmse)))
-		self.predictTimes()
+	
 		
 def main(unused_argv):
-	predictor = SegmentPredictor({'training_steps': 40000, 'data_path' : 'kmeans'})
-	# predictor.trainWithPretraining(4)
-	# predictor.trainCrossValidated(4)
-	predictor.trainStandard()
+	predictor = SegmentPredictor({'training_steps': 40000, 'data_path' : 'kmeans', 'athlete' : 'Julian Maurer'})
+	predictor.trainCrossValidated(6)
+	# predictor.trainStandard()
+	# athleteDict = {'Julian Maurer' : 4,
+	# 				'Florian Daiber' : 2,
+	# 				'Joachim Gross' : 4,
+	# 				'Kerstin de Vries' : 2,
+	# 				'Tom Holzweg' : 4,
+	# 				'Thomas Buyse' : 4,
+	# 				'Torsten Kohlwey' : 4,
+	# 				'Markus Pfarrkircher' : 4,
+	# 				'Alexander Luedemann' : 4,
+	# 				'DI RK' : 4}
+	# athleteDict = {'Julian Maurer' : 6,
+	# 				'Florian Daiber' : 2,
+	# 				'Joachim Gross' : 5,
+	# 				'Kerstin de Vries' : 2,
+	# 				'Tom Holzweg' : 5,
+	# 				'Thomas Buyse' : 4,
+	# 				'Torsten Kohlwey' : 5,
+	# 				'Markus Pfarrkircher' : 3,
+	# 				'Alexander Luedemann' : 4,
+	# 				'DI RK' : 8,
+	# 				'Yen Mertens' : 3,
+	# 				'David Chow' : 4,
+	# 				'Poekie' : 6,
+	# 				'Benedikt Schilling' : 2,
+	# 				'Falk Hofmann' : 2,
+	# 				'Yvonne Dauwalder' : 4,
+	# 				'Heiko G' : 4,
+	# 				'Donato Lattarulo' : 4,
+	# 				'Alexander Probst' : 3,
+	# 				'Marcel Grosser' : 4,
+	# 				'Rebecca Buckingham' : 5,
+	# 				'Simon Weig' : 7,
+	# 				'Robert Kuehne' : 4,
+	# 				'Torsten Baldes' : 5,
+	# 				'Julia Habitzreither' : 4,
+	# 				'Alexander Weidenhaupt' : 4,
+	# 				'Timo Maurer' : 3,
+	# 				'Kevin Klawitter' : 2}
+	# predictor.crossValidateAll(athleteDict)
 
 if __name__ == "__main__":
 	tf.app.run()

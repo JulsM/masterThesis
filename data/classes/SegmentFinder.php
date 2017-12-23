@@ -19,7 +19,7 @@ class SegmentFinder {
 		}
 
 	    ### compute segments
-	    $segments = self::computeSegments($smoothDataPoints, Config::$lowGradientThreshold, Config::$highGradientThreshold);
+	    $segments = self::computeSegments($smoothDataPoints);
 	    ###
 	    if(self::$writeFiles) {
 		    ### write data in CSV 
@@ -37,7 +37,7 @@ class SegmentFinder {
 		}
 
 	    ### recompute segments
-	    $recompSegments = self::recomputeSegments($filteredSegments, Config::$lowGradientThresholdRecomp, Config::$highGradientThresholdRecomp);
+	    $recompSegments = self::recomputeSegments($filteredSegments);
 	    ### 
 	    if(self::$writeFiles) {
 		    ### write data in CSV 
@@ -47,8 +47,10 @@ class SegmentFinder {
 	    return $recompSegments;
 	}
 
-	public static function computeSegments($dataPoints, $flatGradientTreshold, $steepGradientTreshold) {
-
+	public static function computeSegments($dataPoints) {
+		$flatGradientTreshold = Config::$lowGradientThreshold;
+		$highGradientThreshold = Config::$highGradientThreshold;
+		$steepGradientThreshold = Config::$steepGradientThreshold;
 		$segments = [];
 		$prevPoint = $dataPoints[0];
 		$currentState = 0;
@@ -65,19 +67,24 @@ class SegmentFinder {
 			if ($relDist > 0) {
 		        $gradient = round($height / $relDist * 100, 2);
 		    }
-	        
+	        // echo $gradient.', ';
 
-	        if ($gradient >= $steepGradientTreshold) {
-	            $currentState = 'up2';
-	        } elseif ($gradient >= $flatGradientTreshold && $gradient < $steepGradientTreshold) {
+	        if ($gradient >= $steepGradientThreshold) {
+	            $currentState = 'upSteep';
+	        } elseif ($gradient >= $highGradientThreshold && $gradient < $steepGradientThreshold) {
+	            $currentState = 'upHigh';
+	        } elseif ($gradient >= $flatGradientTreshold && $gradient < $highGradientThreshold) {
 	            $currentState = 'up';
 	        } elseif ($gradient < $flatGradientTreshold && $gradient > -$flatGradientTreshold) {
 	            $currentState = 'level';
-	        } elseif ($gradient <= -$flatGradientTreshold && $gradient > -$steepGradientTreshold) {
+	        } elseif ($gradient <= -$flatGradientTreshold && $gradient > -$highGradientThreshold) {
 	            $currentState = 'down';
-	        } elseif ($gradient <= -$steepGradientTreshold) {
-	            $currentState = 'down2';
+	        } elseif ($gradient <= -$highGradientThreshold && $gradient > -$steepGradientThreshold) {
+	            $currentState = 'downHigh';
+	        } elseif ($gradient <= -$steepGradientThreshold) {
+	            $currentState = 'downSteep';
 	        }
+	        // echo $currentState;
 	        // if state changed add point to segments
 	        if ($currentState != $prevState && $prevState != 'null') {
 	        	$s = new Segment($startSegment, $prevPoint);
@@ -101,8 +108,10 @@ class SegmentFinder {
 		return $segments;
 	}
 
-	public static function recomputeSegments($segments, $flatGradientTreshold, $steepGradientTreshold) {
-
+	public static function recomputeSegments($segments) {
+		$flatGradientTreshold = Config::$lowGradientThresholdRecomp;
+		$highGradientThreshold = Config::$highGradientThresholdRecomp;
+		$steepGradientThreshold = Config::$steepGradientThresholdRecomp;
 		$response = [];
 		$currentState = 0;
 		$prevState = 0;
@@ -115,16 +124,20 @@ class SegmentFinder {
 	        $gradient = $currentSegment->gradient;
 
 
-	        if ($gradient >= $steepGradientTreshold) {
-	            $currentState = 'up2';
-	        } elseif ($gradient >= $flatGradientTreshold && $gradient < $steepGradientTreshold) {
+	        if ($gradient >= $steepGradientThreshold) {
+	            $currentState = 'upSteep';
+	        } elseif ($gradient >= $highGradientThreshold && $gradient < $steepGradientThreshold) {
+	            $currentState = 'upHigh';
+	        } elseif ($gradient >= $flatGradientTreshold && $gradient < $highGradientThreshold) {
 	            $currentState = 'up';
 	        } elseif ($gradient < $flatGradientTreshold && $gradient > -$flatGradientTreshold) {
 	            $currentState = 'level';
-	        } elseif ($gradient <= -$flatGradientTreshold && $gradient > -$steepGradientTreshold) {
+	        } elseif ($gradient <= -$flatGradientTreshold && $gradient > -$highGradientThreshold) {
 	            $currentState = 'down';
-	        } elseif ($gradient <= -$steepGradientTreshold) {
-	            $currentState = 'down2';
+	        } elseif ($gradient <= -$highGradientThreshold && $gradient > -$steepGradientThreshold) {
+	            $currentState = 'downHigh';
+	        } elseif ($gradient <= -$steepGradientThreshold) {
+	            $currentState = 'downSteep';
 	        }
 	        // if state changed add new segment
 	        if ($currentState != $prevState && $prevState != 'null') {

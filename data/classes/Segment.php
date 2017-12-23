@@ -30,7 +30,10 @@ class Segment {
 	}
 
 	public function printSegment() {
-		echo 'Segment start '.$this->start->distance.', end '.$this->end->distance.', length '.$this->length.', gradient '.$this->gradient.'<br>';
+		$vel = 1000/ ($this->length / ($this->end->time - $this->start->time));
+		$min = floor($vel / 60);
+		$s = $vel % 60;
+		echo 'Segment start '.$this->start->distance.', end '.$this->end->distance.', length '.$this->length.', gradient '.$this->gradient.', vel: '.$min.':'.$s.'<br>';
 	}
 
 }

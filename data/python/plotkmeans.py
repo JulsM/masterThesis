@@ -26,7 +26,8 @@ def plotkmeans():
 	# plt.grid()
 
 	# print(len(data[data.cluster == 5]))
-	print(len(data))
+	print(len(data), len(data[data.cluster == 5]))
+
 	
 	plt.figure(figsize=(12, 4), dpi=100, facecolor='w')
 	for c in range(numClusters):
