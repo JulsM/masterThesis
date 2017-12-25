@@ -440,7 +440,7 @@ class RaceTimePredictor:
 		
 def main(unused_argv):
 	predictor = RaceTimePredictor({'training_steps': 40000, 'data_path' : 'kmeans', 'athlete' : 'Julian Maurer'})
-	# predictor.trainCrossValidated(4)
+	predictor.trainCrossValidated(6)
 	# predictor.trainStandard()
 	# predictor.trainWithPretraining(4)
 	# predictor.predictOnly()
@@ -455,36 +455,36 @@ def main(unused_argv):
 	# 				'Markus Pfarrkircher' : 4,
 	# 				'Alexander Luedemann' : 4,
 	# 				'DI RK' : 4}
-	athleteDict = {'Julian Maurer' : 6,
-					'Florian Daiber' : 2,
-					'Joachim Gross' : 5,
-					'Kerstin de Vries' : 2,
-					'Tom Holzweg' : 5,
-					'Thomas Buyse' : 4,
-					'Torsten Kohlwey' : 5,
-					'Markus Pfarrkircher' : 3,
-					'Alexander Luedemann' : 4,
-					'DI RK' : 8,
-					'Yen Mertens' : 3,
-					'David Chow' : 4,
-					'Poekie' : 6,
-					'Benedikt Schilling' : 2,
-					'Falk Hofmann' : 2,
-					'Yvonne Dauwalder' : 4,
-					'Heiko G' : 4,
-					'Donato Lattarulo' : 4,
-					'Alexander Probst' : 3,
-					'Marcel Grosser' : 4,
-					'Rebecca Buckingham' : 5,
-					'Simon Weig' : 7,
-					'Robert Kuehne' : 4,
-					'Torsten Baldes' : 5,
-					'Julia Habitzreither' : 4,
-					'Alexander Weidenhaupt' : 4,
-					'Timo Maurer' : 3,
-					'Kevin Klawitter' : 2}
+	# athleteDict = {'Julian Maurer' : 6,
+	# 				'Florian Daiber' : 2,
+	# 				'Joachim Gross' : 5,
+	# 				'Kerstin de Vries' : 2,
+	# 				'Tom Holzweg' : 5,
+	# 				'Thomas Buyse' : 4,
+	# 				'Torsten Kohlwey' : 5,
+	# 				'Markus Pfarrkircher' : 3,
+	# 				'Alexander Luedemann' : 4,
+	# 				'DI RK' : 8,
+	# 				'Yen Mertens' : 3,
+	# 				'David Chow' : 4,
+	# 				'Poekie' : 6,
+	# 				'Benedikt Schilling' : 2,
+	# 				'Falk Hofmann' : 2,
+	# 				'Yvonne Dauwalder' : 4,
+	# 				'Heiko G' : 4,
+	# 				'Donato Lattarulo' : 4,
+	# 				'Alexander Probst' : 3,
+	# 				'Marcel Grosser' : 4,
+	# 				'Rebecca Buckingham' : 5,
+	# 				'Simon Weig' : 7,
+	# 				'Robert Kuehne' : 4,
+	# 				'Torsten Baldes' : 5,
+	# 				'Julia Habitzreither' : 4,
+	# 				'Alexander Weidenhaupt' : 4,
+	# 				'Timo Maurer' : 3,
+	# 				'Kevin Klawitter' : 2}
 	# predictor.crossValidateAll(athleteDict)
-	predictor.crossValidateAllWithPretraining(athleteDict)
+	# predictor.crossValidateAllWithPretraining(athleteDict)
 
 if __name__ == "__main__":
 	tf.app.run()

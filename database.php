@@ -53,6 +53,18 @@ class Db
         // print( self::query("select id from users where email = '".$data['mail']."'"));
     }
 
+    public function saveStudy($data)
+    {
+        $sucess = false;
+        try {
+            $statement = "INSERT INTO study (strava_id, name, email, token, question_1, question_2, question_3) VALUES ('".$data['stravaId']."', '".$data['name']."', '".$data['mail']."', '".$data['token']."', '".$data['q1']."', '".$data['q2']."', '".$data['q3']."')";
+            $result = pg_query($this->connection, $statement);
+            
+        } catch(Exception $e) {
+            echo $e->getMessage();
+        }
+    }
+
     public function saveAthlete($athlete)
     {
         $timestamp = date('Y-m-d H:i:s e');

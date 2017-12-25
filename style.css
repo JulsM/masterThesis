@@ -1,33 +1,32 @@
 html, body {
 	height: 100%;
 	width: 100%;
+	margin: 0;
+	padding: 0;
 }
 
 #main {
-	padding: 50px;
-	min-height: 60%;
+	padding: 5%;
+	min-height: 90%;
     height: auto;
     background-color: #c5dbe5;
-    width: 65%;
-    margin: 50px auto;
-    text-align: center;
+    /*width: 100%;*/
+    margin: auto auto;
+    font-size: 85%;
 }
 
-#formMail {
-	margin: auto calc(50% - 100px);
-}
 
-#formMail input {
-	margin-top: 20px;
-}
 
-#formMail input:nth-child(2) {
+.form input[type=submit] {
 	border : solid 1px #aaa;
-	border-radius : 2px;
-	moz-border-radius : 2px;
+	border-radius : 3px;
+	moz-border-radius : 3px;
 	font-size : 15px;
 	color : #000;
-	padding : 1px 10px;
+	padding : 5px 15px;
+}
+.form input[type=submit]:hover {
+	cursor: pointer;
 }
 
 #mainUsers {
@@ -39,15 +38,25 @@ html, body {
     margin: 0 auto;
 }
 
-#language {
-	text-align: right;
-	font-size: 80%;
+
+
+#questions {
+	text-align: left;
+	margin-top: 50px;
 }
-#language span {
-	text-decoration: underline;
-	cursor: pointer;
+#questions p {
+	font-weight: bold;
 }
 
-#english {
-	display: none;
+@media only screen and (min-width: 768px) {
+	#main {
+		padding: 5% 10%;
+		min-height: 60%;
+	    height: auto;
+	    background-color: #c5dbe5;
+	    width: 65%;
+	    margin: 5% auto;
+	    font-size: 100%;
+	}
+
 }

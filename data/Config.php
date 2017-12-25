@@ -4,7 +4,7 @@ class Config {
 
 
 	## API
-	static $numOfActivities = 6;
+	static $numOfActivities = 2;
 
 	## Clean Google data
 	static $cleanMinDist = 5; // meters

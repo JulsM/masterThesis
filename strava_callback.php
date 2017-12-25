@@ -9,29 +9,30 @@ use Strava\API\Exception;
 use Strava\API\OAuth;
 include 'database.php';
 
-$db = Db::getInstance();
-$conn = $db->getConnection();
 
+session_start(); 
 
 
 if (isset($_POST['email']) && $_POST['email'] != "" && !isset($_GET['code'])) {
-    $result = $db->query('SELECT * FROM users WHERE email = \'' . $_POST['email'] . '\'');
-    // print_r($result);
-    if (empty($result)) {
-        // echo 'Email not in db. Connect with Strava';
-        signIn();
-    } else {
-        // echo 'Already in DB';
-        header('Location: index.php?redirect');
-        exit;
+    $_SESSION['email'] = $_POST['email'];
+    $_SESSION['q1'] = $_POST['q1'];
+    $_SESSION['q2'] = $_POST['q2'];
+    $_SESSION['q3'] = $_POST['q3'];
 
-    }
+    signIn();
+    
 } else if (isset($_GET['code'])) {
+    $db = Db::getInstance();
+    $conn = $db->getConnection();
     $token = signIn();
     if ($token != '') {
         $api = new StravaApiClient($token);
         $athleteData = $api->queryAthlete();
-        $db->saveUser($athleteData);
+        $athleteData['email'] = $_SESSION['email'];
+        $athleteData['q1'] = $_SESSION['q1'];
+        $athleteData['q2'] = $_SESSION['q2'];
+        $athleteData['q3'] = $_SESSION['q3'];
+        $db->saveStudy($athleteData);
         header('Location: index.php?redirect');
         exit;
     }
