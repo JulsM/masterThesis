@@ -7,6 +7,7 @@ from sklearn import preprocessing
 import math as math
 import os, shutil
 tf.logging.set_verbosity(tf.logging.ERROR)
+from plotSegmentResults import plotSegments
 
 
 class SegmentPredictor:
@@ -63,8 +64,9 @@ class SegmentPredictor:
 			for f in filelist:
 				shutil.rmtree(os.path.join(self.FLAGS['model_path']+self.FLAGS['athlete']+'/', f)) 
 
-	def normalize(self, data):		
-		data[self.FEATURES] = self.std_scaler.transform(data[self.FEATURES])
+	def normalize(self, data):	
+		standCols = [x for x in self.FEATURES if x != 'isRace']
+		data[standCols] = self.std_scaler.transform(data[standCols])
 		return data
 
 
@@ -225,23 +227,29 @@ class SegmentPredictor:
 		prediction_set = pd.DataFrame(pred_data.copy(), columns=self.COLUMNS)
 		f = list(self.FEATURES)
 		f.append(self.LABEL)
-		print(prediction_set[f])
+		# print(prediction_set[f])
 		prediction_set = self.normalize(prediction_set)
 
 		predict_input_fn = self.get_input_fn(prediction_set, num_epochs=1, shuffle=False)
 		predictions = self.estimator.predict(input_fn=predict_input_fn)
 		
 		racetime = 0
+		accSum = []
+		results = []
 		for i, p in enumerate(predictions):
-			print("Predicted time %s: %s sec" % (i, round(p[self.LABEL], 2)))
+			# print("Predicted time %s: %s sec" % (i, round(p[self.LABEL], 2)))
 			racetime += p[self.LABEL]
 			vel = round((pred_data['segEndDist'][i] - pred_data['segStartDist'][i]) / p[self.LABEL], 2)
 			vel = str(int(1000/vel / 60)) + ':'+str(int(1000/vel % 60))
 			accuracy = round((1 - (abs(p[self.LABEL] - prediction_set[self.LABEL][i]) / prediction_set[self.LABEL][i])) * 100, 2)
-			print("+/- Seconds: %s sec, Velocity: %s min/km, Similarity: %s %%" % (round((p[self.LABEL] - prediction_set[self.LABEL][i]), 2), vel, accuracy))
+			accSum.append(accuracy)
+			results.append([p[self.LABEL], pred_data[self.LABEL][i], pred_data['segGrade'][i]])
+			print("Predicted time %s: %s sec, offset: %s sec, Vel: %s min/km, Sim: %s %%" % (i, round(p[self.LABEL], 2), round((p[self.LABEL] - prediction_set[self.LABEL][i]), 2), vel, accuracy))
 		accuracy = round((1 - (abs(racetime - pred_data['activityTime'][0]) / pred_data['activityTime'][0])) * 100, 2)
-		print("Predicted time: %s sec, actual time: %s sec, Accuracy: %s %%" % ( round(racetime, 2), pred_data['activityTime'][0], accuracy))
-	
+		print("Predicted ACTIVITY time: %s min, actual time: %s min, Accuracy: %s %%, mean Similarity: %s %%" % ( round(racetime/60, 2), round(pred_data['activityTime'][0]/60, 2), accuracy, round(np.mean(accSum), 2)))
+		np.savetxt('../output/'+self.FLAGS['athlete']+'/studySegmentResults.csv', results, header='predTime, time, grade', delimiter=',', fmt="%s")
+		plotSegments(self.FLAGS['athlete'])
+
 	def crossValidation(self, kfold):
 		kfoldMse = []
 		kfoldRmse = []
@@ -260,7 +268,7 @@ class SegmentPredictor:
 
 			self.splitKFold(kfold, i)
 			print('train size: ',len(self.training_set), ' test size: ', len(self.test_set))
-			self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[self.FEATURES])
+			self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[[x for x in self.FEATURES if x != 'isRace']])
 			self.training_set = self.normalize(self.training_set)
 			self.test_set = self.normalize(self.test_set)
 			
@@ -377,7 +385,7 @@ class SegmentPredictor:
 		model_params = {"learning_rate": self.FLAGS['learning_rate']}		
 		self.estimator = tf.estimator.Estimator(model_fn=self.model_fn, params=model_params, model_dir=self.FLAGS['model_path']+self.FLAGS['athlete']+'/temp')
 
-		self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[self.FEATURES])
+		self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[[x for x in self.FEATURES if x != 'isRace']])
 		self.training_set = self.normalize(self.training_set)
 
 		test_data = pd.read_csv(self.PRED_PATH, skipinitialspace=True, skiprows=1, names=self.COLUMNS)
@@ -395,9 +403,12 @@ class SegmentPredictor:
 	
 		
 def main(unused_argv):
-	predictor = SegmentPredictor({'training_steps': 40000, 'data_path' : 'kmeans', 'athlete' : 'Julian Maurer'})
-	predictor.trainCrossValidated(6)
-	# predictor.trainStandard()
+	names = ['Julian Maurer', 'Lauflinchen RM', 'Kai K', 'Martin Muehlhan', 'Monika Paul', 'Chris WA', 'Kai Detemple', 'Alexander Zeiner',
+	'Martin B', 'Peter Petto', 'Conny Ziegler', 'Florian Daiber']
+	predictor = SegmentPredictor({'training_steps': 40000, 'data_path' : 'kmeans', 'athlete' : names[8]})
+	# predictor.trainCrossValidated(6)
+	
+	predictor.trainStandard()
 	# athleteDict = {'Julian Maurer' : 4,
 	# 				'Florian Daiber' : 2,
 	# 				'Joachim Gross' : 4,
@@ -426,7 +437,6 @@ def main(unused_argv):
 	# 				'Yvonne Dauwalder' : 4,
 	# 				'Heiko G' : 4,
 	# 				'Donato Lattarulo' : 4,
-	# 				'Alexander Probst' : 3,
 	# 				'Marcel Grosser' : 4,
 	# 				'Rebecca Buckingham' : 5,
 	# 				'Simon Weig' : 7,

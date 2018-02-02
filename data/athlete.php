@@ -78,6 +78,16 @@ if (isset($_GET['strava_id'])) {
             $stravaAthlete = $api->getAthlete($_GET['strava_id']);
             $athlete = new Athlete($stravaAthlete, 'strava', $token);
             $db->saveAthlete($athlete);
+        } else {
+            $result = $db->query('SELECT token FROM study WHERE strava_id =' . $_GET['strava_id']);
+            if (!empty($result)) {
+                $token = $result[0]['token'];
+                $app->createStravaApi($token);
+                $api = $app->getApi();
+                $stravaAthlete = $api->getAthlete($_GET['strava_id']);
+                $athlete = new Athlete($stravaAthlete, 'strava', $token);
+                $db->saveAthlete($athlete);
+            }
         }
     }
 }

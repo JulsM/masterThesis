@@ -13,6 +13,7 @@
   			
   			<h1>Zugriff auf Strava Trainingsdaten gewähren</h1>
 			<div id="german"><p>Durch das Verbinden der App mit deinem Strava-Account bist du damit einverstanden, dass deine Trainingsdaten anonym f&uuml;r wissenschaftliche Zwecke in Form einer Masterarbeit an der Universit&auml;t des Saarlandes und des Deutschen Forschungsinstitut f&uuml;r K&uuml;nstliche Intelligenz (DFKI) verwendet werden d&uuml;rfen. Die Erlaubnis kann jederzeit in den Einstellungen des Strava-Accounts widerrufen werden.</p>
+			<p>Hast du mir schon mal Zugriff gewährt, musst du das nochmal tun um die Antworten der Fragen zu speichern.</p>
 			
 			<!-- <p>Bitte E-Mail Adresse des Strava-Account eingeben und Zugriff auf die Trainingsdaten gew&auml;hren</p> -->
 			</div>

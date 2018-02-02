@@ -25,6 +25,7 @@ class RaceTimePredictor:
 		# paths for different training data
 		self.pathDict = {'races' : "../output/"+self.FLAGS['athlete']+"/raceFeatures.csv",
 					'kmeans': "../output/"+self.FLAGS['athlete']+"/trainFeatures.csv",
+					'study': "../output/"+self.FLAGS['athlete']+"/studyFeatures.csv",
 					'all': "../output/"+self.FLAGS['athlete']+"/activitiesFeatures.csv",
 					'set' : "../output/"+self.FLAGS['athlete']+"/activitySetFeatures.csv",
 					'pred' : "../output/"+self.FLAGS['athlete']+"/predictions.csv"}
@@ -33,7 +34,7 @@ class RaceTimePredictor:
 		self.PRED_PATH = self.pathDict['pred']
 
 		# columns auf the data file
-		self.COLUMNS = ["dist", "elev", "hilly", "cs", "atl", "ctl", "isRace", "avgVo2max", "time", "avgTrainPace", "gender", "tsb"]
+		self.COLUMNS = ["dist", "elev", "hilly", "cs", "atl", "ctl", "isRace", "avgVo2max", "time", "avgTrainPace", "gender"]
 		# columns used as features
 		self.FEATURES = ["dist", "elev", "hilly", "cs", "atl", "ctl", "isRace", "avgVo2max"]
 		# label column
@@ -74,8 +75,16 @@ class RaceTimePredictor:
 	# standardize data with sklearn std scaler
 	def normalize(self, data):
 		# mean, std = train[FEATURES].mean(axis=0), train[FEATURES].std(axis=0, ddof=0)
-		
-		data[self.FEATURES] = self.std_scaler.transform(data[self.FEATURES])
+		standCols = [x for x in self.FEATURES if x != 'isRace']
+		data[standCols] = self.std_scaler.transform(data[standCols])
+		# print(data)
+		return data
+
+
+	def normalizePretrain(self, data):
+		# mean, std = train[FEATURES].mean(axis=0), train[FEATURES].std(axis=0, ddof=0)
+		standCols = [x for x in self.FEATURES if (x != 'isRace') and (x != 'gender')]
+		data[standCols] = self.std_scaler.transform(data[standCols])
 		# print(data)
 		return data
 
@@ -235,9 +244,8 @@ class RaceTimePredictor:
 		f = list(self.FEATURES)
 		f.append(self.LABEL)
 		print(prediction_set[f])
-		# prediction_set = pd.DataFrame([(10000,7,0,0,17,49.29,1,37.98,36.5,3.0034449760766,1)], columns=self.COLUMNS)
-		# prediction_set = pd.DataFrame([(10000,20,0,0,47.3,49.57,1,43.21,36.5,3.452075862069,1)], columns=self.COLUMNS)
 		prediction_set = self.normalize(prediction_set)
+		# prediction_set = self.normalizePretrain(prediction_set)
 		# Print out predictions
 		predict_input_fn = self.get_input_fn(prediction_set, num_epochs=1, shuffle=False)
 		predictions = self.estimator.predict(input_fn=predict_input_fn)
@@ -249,6 +257,8 @@ class RaceTimePredictor:
 			accuracy = round((1 - (abs(p[self.LABEL] - prediction_set[self.LABEL][i]) / prediction_set[self.LABEL][i])) * 100, 2)
 			print("+/- Seconds: %s, Accuracy: %s %%" % (round((p[self.LABEL] - prediction_set[self.LABEL][i]) * 60, 2), accuracy))
 
+	
+
 	# perform k-fold cross validation
 	def crossValidation(self, kfold):
 		# lists for eval metrics
@@ -256,6 +266,7 @@ class RaceTimePredictor:
 		kfoldRmse = []
 		kfoldAccuracy = []
 		kfoldMae = []
+		baselineData = []
 		print('Start training\n')
 		for i in range(kfold):
 			print('Iteration ', i+1)
@@ -267,7 +278,7 @@ class RaceTimePredictor:
 			print('train size: ',len(self.training_set), ' test size: ', len(self.test_set))
 							
 			# normalize and train				
-			self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[self.FEATURES])
+			self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[[x for x in self.FEATURES if x != 'isRace']])
 			self.training_set = self.normalize(self.training_set)
 			self.trainPredictor()
 
@@ -276,6 +287,7 @@ class RaceTimePredictor:
 			predict_input_fn = self.get_input_fn(prediction_set, num_epochs=1, shuffle=False)
 			predictions = self.estimator.predict(input_fn=predict_input_fn)
 			for i, p in enumerate(predictions):
+				baselineData.append([p[self.LABEL], self.test_set['time'][i], self.test_set['dist'][i]/1000, self.test_set['elev'][i], 0])
 				accuracy = (1 - (abs(p[self.LABEL] - prediction_set[self.LABEL][i]) / prediction_set[self.LABEL][i])) * 100
 				print('dist: {:.2f} km, elev: {:.2f} m, time: {:.2f} min, predicted time: {:.2f} min, accuracy: {:.2f} %'.format(self.test_set['dist'][i]/1000, self.test_set['elev'][i], self.test_set['time'][i], p[self.LABEL], accuracy))
 
@@ -288,6 +300,7 @@ class RaceTimePredictor:
 			kfoldAccuracy.append(metrics['accuracy'])
 			kfoldMae.append(metrics['mae'])
 
+		np.savetxt('../output/'+self.FLAGS['athlete']+'/predictionData.csv', baselineData, header='prediction, label, distance, elevation, baseline',  fmt='%.4f', delimiter=',')
 		print('\nMean Metrics for {}-fold cross validation:'.format(kfold))
 		print("MSE: {:.2f} min\nMAE: {:.2f} min\nRMSE: {:.2f} min\nAccuracy: {:.2f} %".format(np.mean(kfoldMse), np.mean(kfoldMae), np.mean(kfoldRmse), np.mean(kfoldAccuracy) * 100))
 		return np.mean(kfoldMse), np.mean(kfoldMae), np.mean(kfoldRmse), np.mean(kfoldAccuracy)
@@ -309,7 +322,7 @@ class RaceTimePredictor:
 		model_params = {"learning_rate": self.FLAGS['learning_rate']}		
 		self.estimator = tf.estimator.Estimator(model_fn=self.model_fn, params=model_params, model_dir=self.FLAGS['model_path']+self.FLAGS['athlete']+'/temp')
 		
-		self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[self.FEATURES])
+		self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[[x for x in self.FEATURES if x != 'isRace']])
 		self.training_set = self.normalize(self.training_set)
 
 		test_data = pd.read_csv(self.PRED_PATH, skipinitialspace=True, skiprows=1, names=self.COLUMNS)
@@ -318,6 +331,72 @@ class RaceTimePredictor:
 		print('train size: ',len(self.training_set), ' test size: ', len(self.test_set))
 
 		print('Start training\n')
+		self.trainPredictor()
+
+		self.evaluatePredictor()
+
+		self.predictTimes()
+
+	
+	def trainStudy(self):
+		print('Load Data')
+		self.FEATURE_PATH = self.pathDict['study']
+		self.training_set = self.loadTrainData()
+		self.clearOldFiles()
+
+		model_params = {"learning_rate": self.FLAGS['learning_rate']}		
+		self.estimator = tf.estimator.Estimator(model_fn=self.model_fn, params=model_params, model_dir=self.FLAGS['model_path']+self.FLAGS['athlete']+'/temp')
+		
+		self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[[x for x in self.FEATURES if x != 'isRace']])
+		self.training_set = self.normalize(self.training_set)
+
+		test_data = pd.read_csv(self.PRED_PATH, skipinitialspace=True, skiprows=1, names=self.COLUMNS)
+		test_set = pd.DataFrame(test_data, columns=self.COLUMNS)
+		self.test_set = self.normalize(test_set)
+		print('train size: ',len(self.training_set))
+		print('Start training\n')
+
+		self.trainPredictor()
+
+		self.evaluatePredictor()
+
+		self.predictTimes()
+
+	def pretrainStudy(self):
+		print('Pre-train Set')
+		# use extended feature set
+		self.FEATURES = ["dist", "elev", "hilly", "cs", "atl", "ctl", "isRace", "avgVo2max", "avgTrainPace", "gender"]
+		self.FEATURE_PATH = self.pathDict['set']
+		self.training_set = self.loadTrainData()
+		print('train size: ',len(self.training_set))
+		self.clearOldFiles()
+		model_params = {"learning_rate": self.FLAGS['learning_rate']}
+		self.estimator = tf.estimator.Estimator(model_fn=self.model_fn, params=model_params, model_dir=self.FLAGS['model_path']+self.FLAGS['athlete']+'/pretrain')
+		self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[[x for x in self.FEATURES if (x != 'isRace') and (x != 'gender')]])
+		self.training_set = self.normalizePretrain(self.training_set)
+		
+		self.trainPredictor()
+		src = self.FLAGS['model_path']+self.FLAGS['athlete']+'/pretrain'
+		dst = self.FLAGS['model_path']+self.FLAGS['athlete']+'/temp'
+		shutil.copytree(src, dst)
+
+		print('Train athlete specific\n')
+		print('Load Data')
+		self.FEATURE_PATH = self.pathDict['study']
+		self.training_set = self.loadTrainData()
+
+		model_params = {"learning_rate": self.FLAGS['learning_rate']}		
+		self.estimator = tf.estimator.Estimator(model_fn=self.model_fn, params=model_params, model_dir=self.FLAGS['model_path']+self.FLAGS['athlete']+'/temp')
+		
+		# self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[[x for x in self.FEATURES if (x != 'isRace') and (x != 'gender')]])
+		self.training_set = self.normalizePretrain(self.training_set)
+
+		test_data = pd.read_csv(self.PRED_PATH, skipinitialspace=True, skiprows=1, names=self.COLUMNS)
+		test_set = pd.DataFrame(test_data, columns=self.COLUMNS)
+		self.test_set = self.normalizePretrain(test_set)
+		print('train size: ',len(self.training_set))
+		print('Start training\n')
+
 		self.trainPredictor()
 
 		self.evaluatePredictor()
@@ -335,7 +414,7 @@ class RaceTimePredictor:
 		self.clearOldFiles()
 		model_params = {"learning_rate": self.FLAGS['learning_rate']}
 		self.estimator = tf.estimator.Estimator(model_fn=self.model_fn, params=model_params, model_dir=self.FLAGS['model_path']+self.FLAGS['athlete']+'/pretrain')
-		self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[self.FEATURES])
+		self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[[x for x in self.FEATURES if x != 'isRace']])
 		self.training_set = self.normalize(self.training_set)
 		
 		self.trainPredictor()
@@ -408,7 +487,7 @@ class RaceTimePredictor:
 			self.clearOldFiles()
 			model_params = {"learning_rate": self.FLAGS['learning_rate']}
 			self.estimator = tf.estimator.Estimator(model_fn=self.model_fn, params=model_params, model_dir=self.FLAGS['model_path']+self.FLAGS['athlete']+'/pretrain')
-			self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[self.FEATURES])
+			self.std_scaler = preprocessing.StandardScaler().fit(self.training_set[[x for x in self.FEATURES if x != 'isRace']])
 			self.training_set = self.normalize(self.training_set)
 			
 			self.trainPredictor()
@@ -439,22 +518,84 @@ class RaceTimePredictor:
 
 		
 def main(unused_argv):
-	predictor = RaceTimePredictor({'training_steps': 40000, 'data_path' : 'kmeans', 'athlete' : 'Julian Maurer'})
-	predictor.trainCrossValidated(6)
+	# names = ['Julian Maurer', 'Lauflinchen RM', 'Kai K', 'Martin Muehlhan', 'Monika Paul', 'Chris WA', 'Kai Detemple', 'Alexander Zeiner',
+	# 'Martin B', 'Peter Petto', 'Conny Ziegler', 'Florian Daiber']
+	predictor = RaceTimePredictor({'training_steps': 40000, 'data_path' : 'kmeans', 'athlete' : ''})
+	# predictor.trainCrossValidated(4)
+	# predictor.trainStudy()
+	# predictor.pretrainStudy()
+	
 	# predictor.trainStandard()
 	# predictor.trainWithPretraining(4)
 	# predictor.predictOnly()
 
-	# athleteDict = {'Julian Maurer' : 4,
-	# 				'Florian Daiber' : 2,
-	# 				'Joachim Gross' : 4,
-	# 				'Kerstin de Vries' : 2,
-	# 				'Tom Holzweg' : 4,
-	# 				'Thomas Buyse' : 4,
-	# 				'Torsten Kohlwey' : 4,
-	# 				'Markus Pfarrkircher' : 4,
-	# 				'Alexander Luedemann' : 4,
-	# 				'DI RK' : 4}
+	athleteDict = {
+					'Florian Daiber' : 2,
+					'Fred Wiehr' : 2,
+					'Julian Maurer' : 5,
+					'Markus Pfarrkircher' : 4,
+					'Yen Mertens' : 4,
+					'David Chow' : 5,
+					'Torsten Kohlwey' : 4,
+					# 'Josefine Rampendahl' : 2,
+					# 'Luis Ramirez' : 2,
+					'Thomas Buyse' : 6,
+					'Poekie' : 6,
+					'Benedikt Schilling' : 2,
+					# 'linkser_m Stefan' : 2,
+					'Falk Hofmann' : 2,
+					'Yvonne Dauwalder' : 5,
+					'Inka Liloleinchen' : 2,
+					'Ingo Himmeldirk' : 4,
+					'Heiko G' : 3,
+					'Donato Lattarulo' : 5,
+					'Marcel Grosser' : 5,
+					'Rebecca Buckingham' : 5,
+					'Simon Weig' : 9,
+					'Robert Kuehne' : 3,
+					'Torsten Baldes' : 5,
+					'Julia Habitzreither' : 5,
+					'Fabian Kattlun' : 6,
+					'Andre Romao' : 2,
+					'Tom Holzweg' : 5,
+					'Enrico Pabst' : 4,
+					'Alexander Weidenhaupt' : 3,
+					'Robin Siegert' : 5,
+					'Kristin Stiller' : 4,
+					# 'Timo Maurer' : 3,
+					'Johannes Licht' : 3,
+					'Gergely Steinbach' : 5,
+					'Howard Sparks' : 6,
+					'Sam Monsivais' : 6,
+					'Richard Cockbain' : 11,
+					'Flavio Velame' : 6,
+					'John Loke' : 5,
+					'Max Irle' : 3,
+					'Remy Sijbom' : 5,
+					'David Strassenmeyer' : 5,
+					'Heiko Idler' : 7,
+					'Alexander Luedemann' : 4,
+					'Fabian Kuhn' : 2,
+					# 'Oliver Tausend' : 4,
+					'Kerstin de Vries' : 3,
+					'Matthieu Dubois' : 7,
+					'Joerg Gutowski' : 5,
+					'DI RK' : 5,
+					'Nici B' : 2, 
+					'Kevin Klawitter' : 2,
+					'Joachim Gross' : 4,
+					'Michal Lubecki' : 10,
+					'Erik Schoob' : 2,
+					'Kai K' : 2,
+					'Martin Muehlhan' : 8,
+					'Chris WA' : 4, 
+					'Kai Detemple' : 3, 
+					'Alexander Zeiner' : 3,
+					'Peter Petto' : 2, 
+					'Conny Ziegler' : 2,
+					'Martin B' : 5}
+	predictor.crossValidateAll(athleteDict)
+					
 	# athleteDict = {'Julian Maurer' : 6,
 	# 				'Florian Daiber' : 2,
 	# 				'Joachim Gross' : 5,
@@ -473,7 +614,6 @@ def main(unused_argv):
 	# 				'Yvonne Dauwalder' : 4,
 	# 				'Heiko G' : 4,
 	# 				'Donato Lattarulo' : 4,
-	# 				'Alexander Probst' : 3,
 	# 				'Marcel Grosser' : 4,
 	# 				'Rebecca Buckingham' : 5,
 	# 				'Simon Weig' : 7,

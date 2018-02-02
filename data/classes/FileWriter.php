@@ -44,9 +44,9 @@ class FileWriter {
 				echo 'Compute segments: '.count($data).'<br>';
 				$list = [];
 				foreach ($data as $segment) {
-				    $list[] = array($segment->start->distance, $segment->start->altitude);
+				    $list[] = array($segment->start->distance, $segment->start->altitude, $segment->length);
 				}
-				$list[] = array($data[count($data)-1]->end->distance, $segment->end->altitude);
+				$list[] = array($data[count($data)-1]->end->distance, $segment->end->altitude, 0);
 
 				$this->writeCsv($list, 'segments');
 			} else if($type == 'filtered') {
@@ -151,20 +151,28 @@ class FileWriter {
 
 	public function writeAthletes($athletes) {	
 
+		### Study ###
 		
 	    $list = [];
 	    $list[] = array('name', 'gender', 'weeklyMileage', 'avgTrainPace', 'avgElevGain', 'numRaces', '5k', '10k', '21k', '42k');
+	    $races = [];
+	    $races[] = array('name', 'distance', 'elevGain', 'elapsedTime', 'date', 'hilly');
 		for($i = 0; $i < count($athletes); $i++) {
 			$a = $athletes[$i];
-			$gender = ($a->gender == 'M') ? 1 : -1;
+			$gender = ($a->gender == 'M') ? 'male' : 'female';
 			$activities = Activity::loadActivitiesDb($a->id);
 			$numRaces = 0;
 			$five = 0;
 			$ten = 0;
 			$half = 0;
 			$full = 0;
+
 			foreach ($activities as $ac) {
+				if(date('Y-m-d',strtotime($ac->date)) == '2017-12-31' && $ac->distance > 5000){
+					continue;
+				}
 				if($ac->activityType == 'race') {
+					$races[] = array($a->name, round($ac->distance/1000, 2), round($ac->elevationGain), round($ac->elapsedTime/60), date('d-m-Y', strtotime($ac->date)), $ac->percentageHilly * 100);
 					$numRaces++;
 					if($ac->distance > 4800 && $ac->distance < 5300) {
 						$five++;
@@ -182,7 +190,98 @@ class FileWriter {
 	    
 		    
 		}
-		$this->writeCsv($list, 'athletes');
+		$this->writeCsv($list, 'athletesStudy');
+		$this->writeCsv($races, 'racesStudy');
+
+		
+	    
+			
+
+	}
+
+	public function writeStudyFiles($activities, $athlete) {
+		global $db;
+		$silvesterlauf = null;
+		foreach ($activities as $key => $ac) {
+			if(date('Y-m-d',strtotime($ac->date)) == '2017-12-31' && $ac->distance > 5000){
+				$silvesterlauf = $ac;
+				array_splice($activities, $key, 1);
+				// unset($activities[$key]);
+			}
+		}
+		$clusters = $this->clusterActivities($activities);
+		$fastClusters = $clusters['fast_clusters'];
+		$fastActivities = [];
+		for($i = 0; $i < count($fastClusters); $i++) {
+			$c = $fastClusters[$i];
+			for($j = 0; $j < count($c); $j++) {
+				$fastActivities[] = $c[$j];
+			}	    
+		}
+		$fastActivities = $this->sortActivitiesByDate($fastActivities);
+	    $list = [];
+	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'isRace', 'avgVo2max', 'time', 'avgTrainPace', 'gender');
+	    $gender = ($athlete->gender == 'M') ? 1 : -1;
+		for($i = 0; $i < count($fastActivities); $i++) {
+			$ac = $fastActivities[$i];
+			$isRace = ($ac->activityType == 'race') ? 1 : -1;
+			
+			
+			
+			$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $isRace, $ac->xWeekSummary->averageVo2Max, $ac->elapsedTime / 60, $athlete->averageTrainingPace, $gender);
+		}
+		$this->writeCsv($list, 'studyFeatures');
+		$predlist[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'isRace', 'avgVo2max', 'time', 'avgTrainPace', 'gender');
+		$vo2max = $athlete->xWeekSummary->averageVo2Max;
+		$predlist[] = array($silvesterlauf->distance,$silvesterlauf->elevationGain,$silvesterlauf->percentageHilly,$silvesterlauf->climbScore,$silvesterlauf->preAtl,$silvesterlauf->preCtl,1,$vo2max,$silvesterlauf->elapsedTime/ 60,$athlete->averageTrainingPace,$gender);
+		$this->writeCsv($predlist, 'predictions');
+
+		// segments
+		$seglist = [];
+	    $seglist[] = array('id', 'activityDistance', 'activityTime', 'activityElevation', 'isRace', 'segStartDist', 'segEndDist', 'segLength', 'segGrade', 'elevGainDone', 'segTime');
+		for($i = 0; $i < count($fastActivities); $i++) {
+			$ac = $fastActivities[$i];
+			$isRace = ($ac->activityType == 'race') ? 1 : -1;
+			$result = $db->query('SELECT serialized_segments FROM activity WHERE strava_id =' . $ac->id);
+			$segments = unserialize($result[0]['serialized_segments']);
+			$elevGainDone = 0;
+			for($m = 0; $m < count($segments); $m++) {
+				$seg = $segments[$m];
+				// $seg->printSegment();
+				$vel = $seg->length / ($seg->end->time - $seg->start->time);
+				if($ac->activityType != 'race' && $vel < 1.38) { // 12:00 min/km
+					continue;
+				}
+				if($ac->activityType != 'race' && $seg->length < 50) {
+					continue;
+				}
+				
+				$segLength = $seg->end->distance - $seg->start->distance;
+				$segTime = $seg->end->time - $seg->start->time;
+				$seglist[] = array($i, $ac->distance, $ac->elapsedTime, $ac->elevationGain, $isRace, $seg->start->distance, $seg->end->distance, $segLength, $seg->gradient, $elevGainDone, $segTime);
+				$elevGainDone = ($seg->elevation > 0) ? $elevGainDone + $seg->elevation : $elevGainDone;
+			}
+					    
+		}
+		$this->writeCsv($seglist, 'segmentFeatures');
+
+		$segpredlist = [];
+	    $segpredlist[] = array('id', 'activityDistance', 'activityTime', 'activityElevation', 'isRace', 'segStartDist', 'segEndDist', 'segLength', 'segGrade', 'elevGainDone', 'segTime');
+		$result = $db->query('SELECT serialized_segments FROM activity WHERE strava_id =' . $silvesterlauf->id);
+		$segments = unserialize($result[0]['serialized_segments']);
+		$elevGainDone = 0;
+		for($m = 0; $m < count($segments); $m++) {
+			$seg = $segments[$m];
+			// $seg->printSegment();
+						
+			$segLength = $seg->end->distance - $seg->start->distance;
+			$segTime = $seg->end->time - $seg->start->time;
+			$segpredlist[] = array(-1, $silvesterlauf->distance, $silvesterlauf->elapsedTime, $silvesterlauf->elevationGain, 1, $seg->start->distance, $seg->end->distance, $segLength, $seg->gradient, $elevGainDone, $segTime);
+			$elevGainDone = ($seg->elevation > 0) ? $elevGainDone + $seg->elevation : $elevGainDone;
+		}
+		// print_r($segpredlist);
+		$this->writeCsv($segpredlist, 'segmentPredictions');		    
+		
 
 	}
 
@@ -245,37 +344,51 @@ class FileWriter {
 
 	}
 
-	public function writeActivitySetFeatures($activities, $athleteId) {	
+	public function writeActivitySetFeatures($athleteId) {	
 		global $db;
-		$activities = $this->basicActivityFiltering($activities);
-		
-	    $list = [];
-	    $list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'isRace', 'avgVo2max', 'time', 'avgTrainPace', 'gender');
-	    $athleteId = 0;
-		for($i = 0; $i < count($activities); $i++) {
+		$list = [];
+    	$list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'isRace', 'avgVo2max', 'time', 'avgTrainPace', 'gender');
+	    $db = Db::getInstance();
 
-			$ac = $activities[$i];
-			if($athleteId != $ac->athleteId) {
-				$result = $db->query('SELECT average_training_pace, gender FROM athlete WHERE strava_id =' . $ac->athleteId);
-				$avgSpeed = $result[0]['average_training_pace'];
-				$gender = ($result[0]['gender'] == 'M' ? 1 : -1);
-				$athleteId = $ac->athleteId;
-			}
-			// if($ac->activityType == 'speedwork') {
-			// 	continue;
-			// }
-			if($ac->activityType == 'race' && $ac->athleteId == $athleteId) {
-				continue;
-			}
-			// if($ac->preAtl > 150) {
-			// 	echo $ac->athleteId.' ';
-			// }
-			
-			$isRace = ($ac->activityType == 'race') ? 1 : -1;
-			
-	    	$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $isRace, $ac->xWeekSummary->averageVo2Max, $ac->elapsedTime / 60, $avgSpeed, $gender);
-	    
+	    $query = 'SELECT strava_id FROM athlete where strava_id != '.$athleteId;
+	    $athletes = $db->query($query);
+	    foreach ($athletes as $athlete) {
+	    	$result = $db->query('SELECT average_training_pace, gender FROM athlete WHERE strava_id =' . $athlete['strava_id']);
+			$avgSpeed = $result[0]['average_training_pace'];
+			$gender = ($result[0]['gender'] == 'M' ? 1 : -1);
+
+		    $query = 'SELECT strava_id, athlete_id, activity_timestamp, name, elapsed_time, distance, average_speed, elevation_gain, elevation_loss, vo2_max, climb_score, percentage_hilly, surface, activity_type, split_type, average_ngp, training_stress_score, pre_activity_atl, pre_activity_ctl, serialized_xweek_summary FROM activity where athlete_id = '.$athlete['strava_id'];
+		    $result = $db->query($query);
+		    $activities = [];
+		    if(!empty($result)) {
+		        foreach ($result as $ac) {
+		            $activity = new Activity($ac, 'db');
+		            $activities[] = $activity;
+		        }
+		    }
 		    
+			$clusters = $this->clusterActivities($activities);
+			$fastClusters = $clusters['fast_clusters'];
+			$fastActivities = [];
+			for($i = 0; $i < count($fastClusters); $i++) {
+				$c = $fastClusters[$i];
+				for($j = 0; $j < count($c); $j++) {
+					$fastActivities[] = $c[$j];
+				}	    
+			}
+			$fastActivities = $this->sortActivitiesByDate($fastActivities);
+			
+			for($i = 0; $i < count($fastActivities); $i++) {
+
+				$ac = $fastActivities[$i];
+				
+				$isRace = ($ac->activityType == 'race') ? 1 : -1;
+				
+		    	$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $isRace, $ac->xWeekSummary->averageVo2Max, $ac->elapsedTime / 60, $avgSpeed, $gender);
+		    
+			    
+			}
+
 		}
 		$this->writeCsv($list, 'activitySetFeatures');
 
@@ -405,7 +518,7 @@ class FileWriter {
 
 		for($i = 0; $i < count($activities); $i++) {
 			$ac = $activities[$i];
-			if($ac->distance < 2000 || $ac->distance > 50000) {
+			if($ac->distance < 2500 || $ac->distance > 50000) {
 				continue;
 			}
 			if($ac->averageNGP < 1.6 || $ac->averageNGP > 7) {
@@ -469,7 +582,7 @@ class FileWriter {
 			$speeds = array_map(function($a) {return $a->averageNGP;}, $c);
 			$speedMean = array_sum($speeds) / count($speeds);
 			$speedMax = max($speeds);
-			// $speedThreshold = ($speedMean + $speedMax) / 2.05;
+			// $speedThreshold = ($speedMean + $speedMax) / 2.0;
 			$speedThreshold = $speedMean;
 			$slowList = [];
 			$fastList = [];

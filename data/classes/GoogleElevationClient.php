@@ -78,6 +78,7 @@ class GoogleElevationClient
         $str = '';
         foreach ($this->coordinate_array as $coordinate) {
             if(strlen($str) < 6000) {
+                // $str.= sprintf('%f',$coordinate[0]).','.sprintf('%f',$coordinate[1]).'|';
                 $str.= implode(',', $coordinate).'|';
             } else {
                 $str = substr($str, 0, -1);

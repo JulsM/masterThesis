@@ -8,9 +8,15 @@
 <!DOCTYPE html>
 <html>
     <head>
+    	<title>Race Time Prediction</title>
+    	<meta property="og:title" content="Race Time Prediction - Abschluss-Studie" />
+		<meta property="og:url" content="http://umtl.dfki.de/~julian/" />
+		<meta property="og:image" content="http://umtl.dfki.de/~julian/spot-862274_1920.jpg">
     	<meta charset="utf-8">
 		<link rel="stylesheet" href="style.css" type='text/css'>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+		
     </head>
     <body>
 	    <div id="main">
@@ -26,15 +32,16 @@
 				<div id="questions">
 				<h2>3 Fragen, die auf vor dem Lauf bezogen sind</h2>
 					<form id="questions" class="form" action="connect.php" method="post">
-						<p>Wie ist deine Motivation für den Lauf? Was hast du dir vorgenommen an Leistung zu geben?<br> (z.B. neue Bestzeit oder lockerer Trainingslauf, wo du nur x-% gibst)</p>
+						<p>Wie ist deine Motivation für den Lauf? Was hast du dir vorgenommen an Leistung zu geben?<br> (z.B. neue Bestzeit oder lockerer Trainingslauf, wo du nur x-% gibst) *</p>
 						<textarea name="q1" rows="4" cols="30"></textarea><br>
 						<p>Hast du dir eine Zielzeit vorgenommen? Wenn ja, welche ist das?</p>
 						<input type="text" name="q2" style="width: 50px; text-align: right;"> Minuten<br>
-						<p>Hast du extra für diesen Lauf trainiert?</p>
+						<p>Hast du extra für diesen Lauf trainiert? *</p>
 						<input type="radio" name="q3" value="ja" checked> ja<br>
 						<input type="radio" name="q3" value="nein" checked> nein<br>
-						<p>E-Mail für Teilnahme an der Auslosung der Gutscheine</p>
-						<input type="email" name="email" placeholder="Email"><br><br>
+						<p>E-Mail für Teilnahme an der Auslosung der Gutscheine *</p>
+						<input type="email" name="email" placeholder="Email"><br>
+						<p style="font-size: 80%">* notwendig um an der Verlosung teilzunehmen</p>
 						<input type="submit" value="Weiter">
 					</form>
 				</div>

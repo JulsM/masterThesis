@@ -54,6 +54,13 @@ if (isset($_GET['strava_id'])) {
         ###
         
     }
+
+    if($activity != null && isset($_GET['writeSegments']) && $_GET['writeSegments'] == true) {
+        
+        $fileWriter = new FileWriter($athleteName);
+        $fileWriter->writeControlData($activity->segments, 'segments');
+        
+    }
     
     
     
@@ -91,6 +98,13 @@ if (isset($_GET['strava_id'])) {
                 <input type="hidden" name="writeData" value="true">
                 <input type="hidden" name="athlete" value="'.$athleteName.'">
                 <input type="submit" value="Write chart data">
+            </form>';
+
+    echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
+                <input type="hidden" name="strava_id" value="'.$activity->id.'">
+                <input type="hidden" name="writeSegments" value="true">
+                <input type="hidden" name="athlete" value="'.$athleteName.'">
+                <input type="submit" value="Write segments">
             </form>';
 
     ?>
