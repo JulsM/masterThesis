@@ -212,7 +212,7 @@ class SegmentPredictor:
 		# print("Root Mean Squared Error: %s sec\n" % ev["rmse"])
 		test_input_fn = self.get_input_fn(self.test_set, num_epochs=1, shuffle=False)
 		ev = self.estimator.evaluate(input_fn=test_input_fn)
-		print('Test set evaluation')
+		print('Segment evaluation')
 		print("Mean Squared Error: %s sec" % ev['mse'])
 		print("Mean Absolute Error: %s sec" % ev['mae'])
 		print("Root Mean Squared Error: %s sec" % ev["rmse"])
@@ -278,6 +278,7 @@ class SegmentPredictor:
 			kfoldRmse.append(metrics['rmse'])
 			kfoldAccuracy.append(metrics['accuracy'])
 			kfoldMae.append(metrics['mae'])
+			print('Activity race time Prediction:');
 			mse, rmse, mae, meanAcc, meanSim = self.evalActivities()
 			activityMse.append(mse)
 			activityRmse.append(rmse)
@@ -288,7 +289,7 @@ class SegmentPredictor:
 		print('\nMean Segment Metrics for {}-fold cross validation:'.format(kfold))
 		print("MSE: {:.2f} sec\nMAE: {:.2f} sec\nRMSE: {:.2f} sec\nAccuracy: {:.2f} %".format(np.mean(kfoldMse), np.mean(kfoldMae), np.mean(kfoldRmse), np.mean(kfoldAccuracy) * 100))
 		print('\nMean Activity Metrics for {}-fold cross validation:'.format(kfold))
-		print("MSE: {:.2f} min\nMAE: {:.2f} min\nRMSE: {:.2f} min\nAccuracy: {:.2f} %\nSimilarity: {:.2f} %".format(np.mean(activityMse), np.mean(activityMae), np.mean(activityRmse), np.mean(activityAccuracy), np.mean(activitySimilarity)))
+		print("MSE: {:.2f} min\nMAE: {:.2f} min\nRMSE: {:.2f} min\nAccuracy: {:.2f} %\nSimilarity: {:.2f} %\n".format(np.mean(activityMse), np.mean(activityMae), np.mean(activityRmse), np.mean(activityAccuracy), np.mean(activitySimilarity)))
 
 		return np.mean(kfoldMse), np.mean(kfoldMae), np.mean(kfoldRmse), np.mean(kfoldAccuracy), np.mean(activityMse), np.mean(activityMae), np.mean(activityRmse), np.mean(activityAccuracy), np.mean(activitySimilarity)
 
@@ -313,7 +314,7 @@ class SegmentPredictor:
 			activityTime = activity['activityTime'].iloc[0]
 			activityDistance = activity['activityDistance'].iloc[0]
 			accuracy = round((1 - (abs(predTime - activityTime) / activityTime)) * 100, 2)
-			print('Activity race time Prediction:');
+			# print('Activity race time Prediction:');
 			print("Predicted time: %s min, actual time: %s min, distance: %s km, Accuracy: %s %%, Similarity: %s %%" % ( round(predTime/60, 2), round(activityTime/60, 2), round(activityDistance/1000,2), accuracy, round(np.mean(similarity), 2)))
 			errors.append((activityTime - predTime) / 60)
 			accuracies.append(accuracy)
@@ -405,48 +406,76 @@ class SegmentPredictor:
 def main(unused_argv):
 	names = ['Julian Maurer', 'Lauflinchen RM', 'Kai K', 'Martin Muehlhan', 'Monika Paul', 'Chris WA', 'Kai Detemple', 'Alexander Zeiner',
 	'Martin B', 'Peter Petto', 'Conny Ziegler', 'Florian Daiber']
-	predictor = SegmentPredictor({'training_steps': 40000, 'data_path' : 'kmeans', 'athlete' : names[8]})
+	predictor = SegmentPredictor({'training_steps': 40000, 'data_path' : 'kmeans', 'athlete' : names[0]})
 	# predictor.trainCrossValidated(6)
 	
-	predictor.trainStandard()
-	# athleteDict = {'Julian Maurer' : 4,
-	# 				'Florian Daiber' : 2,
-	# 				'Joachim Gross' : 4,
-	# 				'Kerstin de Vries' : 2,
-	# 				'Tom Holzweg' : 4,
-	# 				'Thomas Buyse' : 4,
-	# 				'Torsten Kohlwey' : 4,
-	# 				'Markus Pfarrkircher' : 4,
-	# 				'Alexander Luedemann' : 4,
-	# 				'DI RK' : 4}
-	# athleteDict = {'Julian Maurer' : 6,
-	# 				'Florian Daiber' : 2,
-	# 				'Joachim Gross' : 5,
-	# 				'Kerstin de Vries' : 2,
-	# 				'Tom Holzweg' : 5,
-	# 				'Thomas Buyse' : 4,
-	# 				'Torsten Kohlwey' : 5,
-	# 				'Markus Pfarrkircher' : 3,
-	# 				'Alexander Luedemann' : 4,
-	# 				'DI RK' : 8,
-	# 				'Yen Mertens' : 3,
-	# 				'David Chow' : 4,
-	# 				'Poekie' : 6,
-	# 				'Benedikt Schilling' : 2,
-	# 				'Falk Hofmann' : 2,
-	# 				'Yvonne Dauwalder' : 4,
-	# 				'Heiko G' : 4,
-	# 				'Donato Lattarulo' : 4,
-	# 				'Marcel Grosser' : 4,
-	# 				'Rebecca Buckingham' : 5,
-	# 				'Simon Weig' : 7,
-	# 				'Robert Kuehne' : 4,
-	# 				'Torsten Baldes' : 5,
-	# 				'Julia Habitzreither' : 4,
-	# 				'Alexander Weidenhaupt' : 4,
-	# 				'Timo Maurer' : 3,
-	# 				'Kevin Klawitter' : 2}
-	# predictor.crossValidateAll(athleteDict)
+	# predictor.trainStandard()
+	athleteDict = {
+					'Florian Daiber' : 3,
+					'Fred Wiehr' : 2,
+					'Julian Maurer' : 10,
+					'Markus Pfarrkircher' : 4,
+					'Yen Mertens' : 4,
+					'David Chow' : 4,
+					'Torsten Kohlwey' : 5,
+					# 'Josefine Rampendahl' : 2,
+					# 'Luis Ramirez' : 2,
+					'Thomas Buyse' : 6,
+					'Poekie' : 6,
+					'Benedikt Schilling' : 2,
+					# 'linkser_m Stefan' : 2,
+					'Falk Hofmann' : 2,
+					'Yvonne Dauwalder' : 3,
+					'Inka Liloleinchen' : 2,
+					'Ingo Himmeldirk' : 4,
+					'Heiko G' : 4,
+					'Donato Lattarulo' : 5,
+					'Marcel Grosser' : 5,
+					'Rebecca Buckingham' : 5,
+					'Simon Weig' : 9,
+					'Robert Kuehne' : 3,
+					'Torsten Baldes' : 5,
+					'Julia Habitzreither' : 5,
+					'Fabian Kattlun' : 6,
+					'Andre Romao' : 2,
+					'Tom Holzweg' : 5,
+					'Enrico Pabst' : 4,
+					'Alexander Weidenhaupt' : 3,
+					'Robin Siegert' : 5,
+					'Kristin Stiller' : 5,
+					# 'Timo Maurer' : 3,
+					'Johannes Licht' : 3,
+					'Gergely Steinbach' : 4,
+					'Howard Sparks' : 6,
+					# 'Sam Monsivais' : 6,
+					'Richard Cockbain' : 11,
+					'Flavio Velame' : 8,
+					'John Loke' : 5,
+					'Max Irle' : 3,
+					'Remy Sijbom' : 9,
+					'David Strassenmeyer' : 5,
+					'Heiko Idler' : 7,
+					'Alexander Luedemann' : 4,
+					'Fabian Kuhn' : 2,
+					# 'Oliver Tausend' : 4,
+					'Kerstin de Vries' : 3,
+					# 'Matthieu Dubois' : 7,
+					'Joerg Gutowski' : 5,
+					'DI RK' : 9,
+					'Nici B' : 2, 
+					'Kevin Klawitter' : 2,
+					'Joachim Gross' : 4,
+					'Michal Lubecki' : 10,
+					# 'Erik Schoob' : 2,
+					'Kai K' : 2,
+					'Martin Muehlhan' : 8,
+					'Chris WA' : 4, 
+					'Kai Detemple' : 3, 
+					'Alexander Zeiner' : 3,
+					'Peter Petto' : 2, 
+					'Conny Ziegler' : 2,
+					'Martin B' : 5}
+	predictor.crossValidateAll(athleteDict)
 
 if __name__ == "__main__":
 	tf.app.run()

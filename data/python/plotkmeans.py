@@ -6,9 +6,9 @@ from mpl_toolkits.mplot3d import Axes3D
 
 
 def plotkmeans():
-	data = pd.read_csv('../output/kmeans.csv')
+	data = pd.read_csv('../output/Martin Muehlhan/kmeans.csv')
 
-	colors = ['coral', 'blue', 'green', 'purple', 'cyan', 'red', 'yellow', 'coral', 'k', 'saddlebrown']
+	colors = ['orange', 'blue', 'green', 'purple', 'cyan', 'red', 'yellow', 'coral', 'k', 'saddlebrown']
 	numClusters = data.cluster.nunique();
 	
 	# fig = plt.figure(figsize=(12, 4), dpi=100, facecolor='w')

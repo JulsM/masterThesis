@@ -39,8 +39,8 @@ def plotElevSpeed():
 	fit = np.polyfit(d['elevation'], vel, deg=1)
 	plt.plot(d['elevation'], fit[0] * d['elevation'] + fit[1], color='red')
 	plt.scatter(d['elevation'], vel, c='purple', s=1, label='')
-	plt.xlabel('elevation (m)')
-	plt.ylabel('speed (m/s)')
+	plt.xlabel('Elevation (m)')
+	plt.ylabel('Velocity (m/s)')
 	# plt.legend()
 	plt.grid()
 	plt.show()
@@ -66,9 +66,7 @@ def plotXWAvgVo2max():
 	# data = pd.read_csv('../output/Alexander Luedemann/trainFeatures.csv')
 	plt.figure(figsize=(12, 4), dpi=100, facecolor='w')
 	
-	d = data[(data.avgVo2max != 0) & (data.time > 0)]
-	# data = data[(data.isRace == 1) & (data.distance > 9900) & (data.distance < 10300)]
-	# d = d[(d.isRace == 1) & (d.distance > 9800) & (d.distance < 10200)]
+	d = data[(data.avgVo2max != 0) & (data.time > 0) ]
 	
 	# vel = d['distance']/(d['time'] * 60)
 	fit = np.polyfit(d['avgVo2max'], d['ngp'], deg=1)
@@ -78,8 +76,8 @@ def plotXWAvgVo2max():
 	
 	# plt.legend(fontsize="small", loc="upper right")
 	plt.grid()
-	plt.xlabel('avgVo2max')
-	plt.ylabel('NGP')
+	plt.xlabel('Avg Vo2max last 6 weeks')
+	plt.ylabel('NGP m/s')
 
 	plt.show()
 
@@ -123,7 +121,7 @@ def plotHillyCS():
 def plotTsbNgp():
 	
 	plt.figure(figsize=(12, 4), dpi=100, facecolor='w')
-	d = data[(data.atl < 150) & (data.atl > 0) & (data.ctl < 150) & (data.ctl > 0)]
+	d = data[(data.atl < 150) & (data.atl > 0) & (data.ctl < 150) & (data.ctl > 0) ]
 	# d = data
 	tsb = d['ctl'] - d['atl']
 	
@@ -141,8 +139,8 @@ def plotTsbNgp():
 
 # plotWeeklyMileage()
 # plotElevSpeed()
-plotXWAvgVo2max()
-# plotElevHilly()
+# plotXWAvgVo2max()
+plotElevHilly()
 # plotHillyCS()
 # plotTsbNgp()
 

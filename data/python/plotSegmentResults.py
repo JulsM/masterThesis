@@ -32,4 +32,4 @@ def plotSegments(athlete):
 
 	plt.show()
 
-plotSegments('Florian Daiber')
+# plotSegments('Florian Daiber')

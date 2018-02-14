@@ -61,12 +61,14 @@ if (isset($_GET['race_features']) && isset($athlete)) {
     $fileWriter->writeStudyFiles($athlete->activities, $athlete);
 } else if (isset($_GET['athletes'])) {
     echo 'athletes data';
-    // $names = "'Julian Maurer','Florian Daiber','Joachim Groß','Kerstin de Vries','Tom Holzweg','Thomas Buyse 2090944408008','Torsten Kohlwey','Markus Pfarrkircher','Alexander Lüdemann','DI RK','Yen Mertens 2090951579081','David Chow 2090380755056','Poekie .  * 2090532345791','Benedikt Schilling','Falk Hofmann','Yvonne Dauwalder 🇨🇭','Heiko Ⓥ G.','Donato Lattarulo','Alexander Probst','Marcel Großer','Rebecca Buckingham','Simon Weig','Robert Kühne','Kevin Grimwood','Torsten Baldes','Julia Habitzreither','Alexander Weidenhaupt','Timo Maurer','Kevin Klawitter'";
-    $names = "'Julian Maurer','Florian Daiber','Lauflinchen RM','Kai K.','Martin  Mühlhan ','Monika Paul','Chris WA','Kai Detemple','Alexander Zeiner', 'Martin B.', 'Peter Petto', 'Conny Ziegler'";
-    $athleteResult = $db->query('SELECT * FROM athlete WHERE name IN ('.$names.')');
+    $names = ['Florian Daiber','Fred Wiehr','Julian Maurer','Markus Pfarrkircher','Yen Mertens 2090951579081','David Chow 2090380755056','Torsten Kohlwey','Thomas Buyse 2090944408008','Poekie .  * 2090532345791','Benedikt Schilling','Falk Hofmann','Yvonne Dauwalder 🇨🇭','Inka Liloleinchen 🇩🇪','Ingo Himmeldirk','Heiko Ⓥ G.','Donato Lattarulo','Marcel Großer','Rebecca Buckingham','Simon Weig','Robert Kühne','Torsten Baldes','Julia Habitzreither','Fabian Kattlun','André Romão','Tom Holzweg','Enrico Pabst','Alexander Weidenhaupt','Robin Siegert','Kristin Stiller','Johannes Licht','Gergely Steinbach','Howard Sparks','Richard Cockbain','Flavio Velame','John Loke','Max Irle','Remy Sijbom','David Straßenmeyer','Heiko Idler','Alexander Lüdemann','Fabian Kuhn','Kerstin de Vries','Jörg Gutowski','DI RK','Nici B','Kevin Klawitter','Joachim Groß','Michał Lubecki','Kai K.','Martin  Mühlhan ','Chris WA', 'Kai Detemple', 'Alexander Zeiner','Peter Petto', 'Conny Ziegler','Martin B.'];
+    // $names = "'Julian Maurer','Florian Daiber','Lauflinchen RM','Kai K.','Martin  Mühlhan ','Monika Paul','Chris WA','Kai Detemple','Alexander Zeiner', 'Martin B.', 'Peter Petto', 'Conny Ziegler'";
+    
+    
     $athletes = [];
-    for($i = 0; $i < count($athleteResult); $i++) { // athlete in database
-        $athletes[] = new Athlete($athleteResult[$i], 'db');
+    for($i = 0; $i < count($names); $i++) { // athlete in database
+        $athleteResult = $db->query("SELECT * FROM athlete WHERE name = '".$names[$i]."'");
+        $athletes[] = new Athlete($athleteResult[0], 'db');
     }
     $fileWriter = new FileWriter($athlete->name);
     $fileWriter->writeAthletes($athletes);
@@ -121,11 +123,11 @@ echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
 //                 <input type="submit" value="Write all activities">
 //             </form>';
 
-// echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
-//                 <input type="hidden" name="complete_set" value="true">
-//                 <input type="hidden" name="athlete_id" value="'.$athlete->id.'">
-//                 <input type="submit" value="Write complete activity set">
-//             </form>';
+echo '<form action="'.$_SERVER["PHP_SELF"].'" method="get">
+                <input type="hidden" name="complete_set" value="true">
+                <input type="hidden" name="athlete_id" value="'.$athlete->id.'">
+                <input type="submit" value="Write complete activity set">
+            </form>';
 
 
 

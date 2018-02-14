@@ -168,9 +168,9 @@ class FileWriter {
 			$full = 0;
 
 			foreach ($activities as $ac) {
-				if(date('Y-m-d',strtotime($ac->date)) == '2017-12-31' && $ac->distance > 5000){
-					continue;
-				}
+				// if(date('Y-m-d',strtotime($ac->date)) == '2017-12-31' && $ac->distance > 5000){
+				// 	continue;
+				// }
 				if($ac->activityType == 'race') {
 					$races[] = array($a->name, round($ac->distance/1000, 2), round($ac->elevationGain), round($ac->elapsedTime/60), date('d-m-Y', strtotime($ac->date)), $ac->percentageHilly * 100);
 					$numRaces++;
@@ -190,8 +190,10 @@ class FileWriter {
 	    
 		    
 		}
-		$this->writeCsv($list, 'athletesStudy');
-		$this->writeCsv($races, 'racesStudy');
+		// $this->writeCsv($list, 'athletesStudy');
+		// $this->writeCsv($races, 'racesStudy');
+		$this->writeCsv($list, 'athletesEvaluation');
+		$this->writeCsv($races, 'racesEvaluation');
 
 		
 	    
@@ -347,7 +349,7 @@ class FileWriter {
 	public function writeActivitySetFeatures($athleteId) {	
 		global $db;
 		$list = [];
-    	$list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'isRace', 'avgVo2max', 'time', 'avgTrainPace', 'gender');
+    	$list[] = array('distance', 'elevation', 'hilly', 'climbScore', 'atl', 'ctl', 'isRace', 'avgVo2max', 'time', 'avgTrainPace', 'gender', 'ngp');
 	    $db = Db::getInstance();
 
 	    $query = 'SELECT strava_id FROM athlete where strava_id != '.$athleteId;
@@ -384,7 +386,7 @@ class FileWriter {
 				
 				$isRace = ($ac->activityType == 'race') ? 1 : -1;
 				
-		    	$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $isRace, $ac->xWeekSummary->averageVo2Max, $ac->elapsedTime / 60, $avgSpeed, $gender);
+		    	$list[] = array($ac->distance, $ac->elevationGain, $ac->percentageHilly, $ac->climbScore, $ac->preAtl, $ac->preCtl, $isRace, $ac->xWeekSummary->averageVo2Max, $ac->elapsedTime / 60, $avgSpeed, $gender, $ac->averageNGP);
 		    
 			    
 			}
@@ -518,7 +520,7 @@ class FileWriter {
 
 		for($i = 0; $i < count($activities); $i++) {
 			$ac = $activities[$i];
-			if($ac->distance < 2500 || $ac->distance > 50000) {
+			if($ac->distance < 2500 || $ac->distance > 70000) {
 				continue;
 			}
 			if($ac->averageNGP < 1.6 || $ac->averageNGP > 7) {
